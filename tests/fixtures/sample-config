@@ -1,0 +1,10 @@
+# Sample configuration for testing
+CLONE_DIR="/tmp/test-repos"
+GITHUB_ENABLED=false
+LOCAL_CONFIG_ENABLED=true
+LOCAL_REPOS_FILE="/tmp/test-repos.txt"
+CLAUDE_BIN="/usr/local/bin/claude"
+CLAUDE_ARGS="--dangerously-skip-permissions"
+LOG_FILE="/tmp/test.log"
+CACHE_DIR="/tmp/test-cache"
+CACHE_TTL=300

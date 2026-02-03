@@ -1,0 +1,19 @@
+# Logs
+*.log
+
+# Cache
+.cache/
+
+# Test artifacts
+tests/.tmp/
+
+# Development
+.DS_Store
+.vscode/
+.idea/
+
+# User data (should not be in repo)
+repos/
+sessions/
+config
+repos.txt
