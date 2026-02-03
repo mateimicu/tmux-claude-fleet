@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tmux git
+
+          # Install fzf
+          git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
+          ~/.fzf/install --bin
+          sudo ln -sf ~/.fzf/bin/fzf /usr/local/bin/fzf
+
+          # Install bats
+          sudo npm install -g bats
+
+      - name: Verify dependencies
+        run: make check-deps
+
+      - name: Run tests
+        run: make test

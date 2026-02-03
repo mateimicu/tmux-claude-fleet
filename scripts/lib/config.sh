@@ -1,25 +1,26 @@
 #!/usr/bin/env bash
 # Configuration management for tmux-claude-fleet
 
+# Guard against multiple sourcing
+if [ -n "$TMUX_CLAUDE_FLEET_CONFIG_LOADED" ]; then
+    return 0
+fi
+readonly TMUX_CLAUDE_FLEET_CONFIG_LOADED=1
+
 # Source common utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
-# Default configuration values
-declare -gA CONFIG_DEFAULTS=(
-    [CLONE_DIR]="$HOME/.tmux-claude-fleet/repos"
-    [GITHUB_ENABLED]="true"
-    [LOCAL_CONFIG_ENABLED]="true"
-    [LOCAL_REPOS_FILE]="$HOME/.tmux-claude-fleet/repos.txt"
-    [CLAUDE_BIN]="$(command -v claude)"
-    [CLAUDE_ARGS]="--dangerously-skip-permissions"
-    [LOG_FILE]="$HOME/.tmux-claude-fleet/plugin.log"
-    [CACHE_DIR]="$HOME/.tmux-claude-fleet/.cache"
-    [CACHE_TTL]="300"
-)
-
-# Current configuration (loaded values)
-declare -gA CONFIG
+# Default configuration values (bash 3.2 compatible)
+_CONFIG_CLONE_DIR="$HOME/.tmux-claude-fleet/repos"
+_CONFIG_GITHUB_ENABLED="true"
+_CONFIG_LOCAL_CONFIG_ENABLED="true"
+_CONFIG_LOCAL_REPOS_FILE="$HOME/.tmux-claude-fleet/repos.txt"
+_CONFIG_CLAUDE_BIN="$(command -v claude 2>/dev/null || echo "")"
+_CONFIG_CLAUDE_ARGS="--dangerously-skip-permissions"
+_CONFIG_LOG_FILE="$HOME/.tmux-claude-fleet/plugin.log"
+_CONFIG_CACHE_DIR="$HOME/.tmux-claude-fleet/.cache"
+_CONFIG_CACHE_TTL="300"
 
 # Configuration file search paths (in order of priority)
 readonly CONFIG_PATHS=(
@@ -51,7 +52,36 @@ _config_load_file() {
         # Remove quotes from value
         value=$(echo "$value" | sed 's/^"\(.*\)"$/\1/' | sed "s/^'\(.*\)'$/\1/")
 
-        CONFIG["$key"]="$value"
+        # Set configuration variable
+        case "$key" in
+            CLONE_DIR)
+                _CONFIG_CLONE_DIR="$value"
+                ;;
+            GITHUB_ENABLED)
+                _CONFIG_GITHUB_ENABLED="$value"
+                ;;
+            LOCAL_CONFIG_ENABLED)
+                _CONFIG_LOCAL_CONFIG_ENABLED="$value"
+                ;;
+            LOCAL_REPOS_FILE)
+                _CONFIG_LOCAL_REPOS_FILE="$value"
+                ;;
+            CLAUDE_BIN)
+                _CONFIG_CLAUDE_BIN="$value"
+                ;;
+            CLAUDE_ARGS)
+                _CONFIG_CLAUDE_ARGS="$value"
+                ;;
+            LOG_FILE)
+                _CONFIG_LOG_FILE="$value"
+                ;;
+            CACHE_DIR)
+                _CONFIG_CACHE_DIR="$value"
+                ;;
+            CACHE_TTL)
+                _CONFIG_CACHE_TTL="$value"
+                ;;
+        esac
     done < <(grep -v '^[[:space:]]*$' "$config_file")
 
     return 0
@@ -62,24 +92,21 @@ _config_load_file() {
 _config_load_env_overrides() {
     local prefix="TMUX_CLAUDE_FLEET_"
 
-    for key in "${!CONFIG_DEFAULTS[@]}"; do
-        local env_var="${prefix}${key}"
-        if [ -n "${!env_var}" ]; then
-            CONFIG["$key"]="${!env_var}"
-            log "$LOG_DEBUG" "Config override from env: $key=${!env_var}"
-        fi
-    done
+    [ -n "${TMUX_CLAUDE_FLEET_CLONE_DIR}" ] && _CONFIG_CLONE_DIR="${TMUX_CLAUDE_FLEET_CLONE_DIR}"
+    [ -n "${TMUX_CLAUDE_FLEET_GITHUB_ENABLED}" ] && _CONFIG_GITHUB_ENABLED="${TMUX_CLAUDE_FLEET_GITHUB_ENABLED}"
+    [ -n "${TMUX_CLAUDE_FLEET_LOCAL_CONFIG_ENABLED}" ] && _CONFIG_LOCAL_CONFIG_ENABLED="${TMUX_CLAUDE_FLEET_LOCAL_CONFIG_ENABLED}"
+    [ -n "${TMUX_CLAUDE_FLEET_LOCAL_REPOS_FILE}" ] && _CONFIG_LOCAL_REPOS_FILE="${TMUX_CLAUDE_FLEET_LOCAL_REPOS_FILE}"
+    [ -n "${TMUX_CLAUDE_FLEET_CLAUDE_BIN}" ] && _CONFIG_CLAUDE_BIN="${TMUX_CLAUDE_FLEET_CLAUDE_BIN}"
+    [ -n "${TMUX_CLAUDE_FLEET_CLAUDE_ARGS}" ] && _CONFIG_CLAUDE_ARGS="${TMUX_CLAUDE_FLEET_CLAUDE_ARGS}"
+    [ -n "${TMUX_CLAUDE_FLEET_LOG_FILE}" ] && _CONFIG_LOG_FILE="${TMUX_CLAUDE_FLEET_LOG_FILE}"
+    [ -n "${TMUX_CLAUDE_FLEET_CACHE_DIR}" ] && _CONFIG_CACHE_DIR="${TMUX_CLAUDE_FLEET_CACHE_DIR}"
+    [ -n "${TMUX_CLAUDE_FLEET_CACHE_TTL}" ] && _CONFIG_CACHE_TTL="${TMUX_CLAUDE_FLEET_CACHE_TTL}"
 }
 
 # Load configuration with priority: env vars > config files > defaults
 # Usage: config_load
 config_load() {
-    # Start with defaults
-    for key in "${!CONFIG_DEFAULTS[@]}"; do
-        CONFIG["$key"]="${CONFIG_DEFAULTS[$key]}"
-    done
-
-    # Load from config files (later files override earlier ones)
+    # Load from config files (first file found wins)
     local loaded_from=""
     for config_path in "${CONFIG_PATHS[@]}"; do
         if _config_load_file "$config_path"; then
@@ -113,13 +140,38 @@ config_get() {
     local key="$1"
     local default="${2:-}"
 
-    if [ -n "${CONFIG[$key]}" ]; then
-        echo "${CONFIG[$key]}"
-    elif [ -n "$default" ]; then
-        echo "$default"
-    else
-        echo "${CONFIG_DEFAULTS[$key]}"
-    fi
+    case "$key" in
+        CLONE_DIR)
+            echo "${_CONFIG_CLONE_DIR}"
+            ;;
+        GITHUB_ENABLED)
+            echo "${_CONFIG_GITHUB_ENABLED}"
+            ;;
+        LOCAL_CONFIG_ENABLED)
+            echo "${_CONFIG_LOCAL_CONFIG_ENABLED}"
+            ;;
+        LOCAL_REPOS_FILE)
+            echo "${_CONFIG_LOCAL_REPOS_FILE}"
+            ;;
+        CLAUDE_BIN)
+            echo "${_CONFIG_CLAUDE_BIN}"
+            ;;
+        CLAUDE_ARGS)
+            echo "${_CONFIG_CLAUDE_ARGS}"
+            ;;
+        LOG_FILE)
+            echo "${_CONFIG_LOG_FILE}"
+            ;;
+        CACHE_DIR)
+            echo "${_CONFIG_CACHE_DIR}"
+            ;;
+        CACHE_TTL)
+            echo "${_CONFIG_CACHE_TTL}"
+            ;;
+        *)
+            echo "$default"
+            ;;
+    esac
 }
 
 # Validate configuration
@@ -128,50 +180,45 @@ config_validate() {
     local errors=()
 
     # Validate CLONE_DIR
-    local clone_dir=$(config_get "CLONE_DIR")
-    if [ -z "$clone_dir" ]; then
+    if [ -z "$_CONFIG_CLONE_DIR" ]; then
         errors+=("CLONE_DIR cannot be empty")
     else
-        # Create if doesn't exist
-        if ! ensure_dir "$clone_dir"; then
-            errors+=("Failed to create CLONE_DIR: $clone_dir")
+        if ! ensure_dir "$_CONFIG_CLONE_DIR"; then
+            errors+=("Failed to create CLONE_DIR: $_CONFIG_CLONE_DIR")
         fi
     fi
 
     # Validate CACHE_DIR
-    local cache_dir=$(config_get "CACHE_DIR")
-    if [ -n "$cache_dir" ]; then
-        if ! ensure_dir "$cache_dir"; then
-            errors+=("Failed to create CACHE_DIR: $cache_dir")
+    if [ -n "$_CONFIG_CACHE_DIR" ]; then
+        if ! ensure_dir "$_CONFIG_CACHE_DIR"; then
+            errors+=("Failed to create CACHE_DIR: $_CONFIG_CACHE_DIR")
         fi
     fi
 
     # Validate CACHE_TTL is a number
-    local cache_ttl=$(config_get "CACHE_TTL")
-    if ! [[ "$cache_ttl" =~ ^[0-9]+$ ]]; then
-        errors+=("CACHE_TTL must be a positive integer: $cache_ttl")
+    if ! [[ "$_CONFIG_CACHE_TTL" =~ ^[0-9]+$ ]]; then
+        errors+=("CACHE_TTL must be a positive integer: $_CONFIG_CACHE_TTL")
     fi
 
     # Validate boolean values
-    for bool_key in GITHUB_ENABLED LOCAL_CONFIG_ENABLED; do
-        local value=$(config_get "$bool_key")
-        if [[ ! "$value" =~ ^(true|false)$ ]]; then
-            errors+=("$bool_key must be 'true' or 'false': $value")
-        fi
-    done
+    if [[ ! "$_CONFIG_GITHUB_ENABLED" =~ ^(true|false)$ ]]; then
+        errors+=("GITHUB_ENABLED must be 'true' or 'false': $_CONFIG_GITHUB_ENABLED")
+    fi
+
+    if [[ ! "$_CONFIG_LOCAL_CONFIG_ENABLED" =~ ^(true|false)$ ]]; then
+        errors+=("LOCAL_CONFIG_ENABLED must be 'true' or 'false': $_CONFIG_LOCAL_CONFIG_ENABLED")
+    fi
 
     # Validate LOCAL_REPOS_FILE if LOCAL_CONFIG_ENABLED
-    if [ "$(config_get "LOCAL_CONFIG_ENABLED")" = "true" ]; then
-        local repos_file=$(config_get "LOCAL_REPOS_FILE")
-        if [ -n "$repos_file" ] && [ ! -f "$repos_file" ]; then
-            log "$LOG_WARN" "LOCAL_REPOS_FILE not found: $repos_file"
+    if [ "$_CONFIG_LOCAL_CONFIG_ENABLED" = "true" ]; then
+        if [ -n "$_CONFIG_LOCAL_REPOS_FILE" ] && [ ! -f "$_CONFIG_LOCAL_REPOS_FILE" ]; then
+            log "$LOG_WARN" "LOCAL_REPOS_FILE not found: $_CONFIG_LOCAL_REPOS_FILE"
         fi
     fi
 
     # Validate CLAUDE_BIN if set
-    local claude_bin=$(config_get "CLAUDE_BIN")
-    if [ -n "$claude_bin" ] && [ ! -x "$claude_bin" ]; then
-        log "$LOG_WARN" "CLAUDE_BIN not executable: $claude_bin"
+    if [ -n "$_CONFIG_CLAUDE_BIN" ] && [ ! -x "$_CONFIG_CLAUDE_BIN" ]; then
+        log "$LOG_WARN" "CLAUDE_BIN not executable: $_CONFIG_CLAUDE_BIN"
     fi
 
     # Report errors

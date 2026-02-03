@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # Common utilities for tmux-claude-fleet
 
+# Guard against multiple sourcing
+if [ -n "$TMUX_CLAUDE_FLEET_COMMON_LOADED" ]; then
+    return 0
+fi
+readonly TMUX_CLAUDE_FLEET_COMMON_LOADED=1
+
 # Log levels
 readonly LOG_ERROR="ERROR"
 readonly LOG_WARN="WARN"

@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # FZF interfaces for tmux-claude-fleet
 
+# Guard against multiple sourcing
+if [ -n "$TMUX_CLAUDE_FLEET_FZF_LOADED" ]; then
+    return 0
+fi
+readonly TMUX_CLAUDE_FLEET_FZF_LOADED=1
+
 # Source common utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"

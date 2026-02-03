@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # Repository discovery for tmux-claude-fleet
 
+# Guard against multiple sourcing
+if [ -n "$TMUX_CLAUDE_FLEET_REPOS_LOADED" ]; then
+    return 0
+fi
+readonly TMUX_CLAUDE_FLEET_REPOS_LOADED=1
+
 # Source common utilities and config
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
@@ -26,7 +32,7 @@ repos_from_local() {
 
         # Extract URL and optional description
         local url=$(echo "$line" | awk '{print $1}')
-        local description=$(echo "$line" | grep -oP '#\s*\K.*' || echo "")
+        local description=$(echo "$line" | sed -n 's/^[^#]*#[[:space:]]*//p')
 
         if [ -n "$url" ]; then
             echo "$url|$description"
