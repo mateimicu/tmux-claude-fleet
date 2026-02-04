@@ -111,22 +111,17 @@ func runCreate(ctx context.Context) error {
 		fmt.Println("✓ Clone complete")
 	}
 
-	// Create tmux session
+	// Create tmux session with Claude
 	tmuxMgr := tmux.New()
 
-	fmt.Printf("🚀 Creating tmux session '%s'...\n", sessionName)
-
+	var claudeCmd string
 	if cfg.ClaudeBin != "" {
-		// Create session with Claude directly in the first window
-		claudeCmd := cfg.ClaudeBin + " " + strings.Join(cfg.ClaudeArgs, " ")
-		if err := tmuxMgr.CreateSessionWithCommand(sessionName, clonePath, claudeCmd); err != nil {
-			return fmt.Errorf("failed to create tmux session: %w", err)
-		}
-	} else {
-		// Fallback: create session with default shell
-		if err := tmuxMgr.CreateSession(sessionName, clonePath); err != nil {
-			return fmt.Errorf("failed to create tmux session: %w", err)
-		}
+		claudeCmd = cfg.ClaudeBin + " " + strings.Join(cfg.ClaudeArgs, " ")
+	}
+
+	fmt.Printf("🚀 Creating tmux session '%s'...\n", sessionName)
+	if err := tmuxMgr.CreateSession(sessionName, clonePath, claudeCmd); err != nil {
+		return fmt.Errorf("failed to create tmux session: %w", err)
 	}
 
 	// Save metadata
