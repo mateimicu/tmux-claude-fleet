@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 
 	"github.com/mateimicu/tmux-claude-fleet/pkg/types"
@@ -84,10 +85,17 @@ func SelectSessionWithAction(sessions []*types.SessionStatus) (*SessionSelection
 		return nil, fmt.Errorf("no sessions found")
 	}
 
-	// Format sessions for display
+	// Sort sessions by creation time (newest first)
+	sortedSessions := make([]*types.SessionStatus, len(sessions))
+	copy(sortedSessions, sessions)
+	sort.Slice(sortedSessions, func(i, j int) bool {
+		return sortedSessions[i].Session.CreatedAt.After(sortedSessions[j].Session.CreatedAt)
+	})
+
+	// Format sessions for display with numbering
 	var lines []string
-	for _, sess := range sessions {
-		line := formatSessionLine(sess)
+	for idx, sess := range sortedSessions {
+		line := formatSessionLine(sess, idx+1, len(sortedSessions))
 		lines = append(lines, line)
 	}
 
@@ -132,7 +140,7 @@ func formatRepoLine(r *types.Repository) string {
 	return fmt.Sprintf("%s: %s [%s]", r.Source, r.Name, r.URL)
 }
 
-func formatSessionLine(s *types.SessionStatus) string {
+func formatSessionLine(s *types.SessionStatus, sessionNum, totalSessions int) string {
 	status := "⚫"
 	if s.TmuxActive {
 		status = "🟢"
@@ -143,8 +151,15 @@ func formatSessionLine(s *types.SessionStatus) string {
 		claudeStatus = " [Claude ✓]"
 	}
 
-	return fmt.Sprintf("%s %s - %s%s [%s]",
-		status, s.Session.Name, s.Session.RepoURL, claudeStatus, s.Session.Name)
+	// Parse repo URL to get source and org/repo
+	source, orgRepo := parseRepoURL(s.Session.RepoURL)
+
+	// Calculate padding width based on total sessions
+	paddingWidth := len(fmt.Sprintf("%d", totalSessions))
+	sessionNumStr := fmt.Sprintf("%0*d", paddingWidth, sessionNum)
+
+	return fmt.Sprintf("%s %s: %s - %s%s [%s]",
+		status, source, orgRepo, sessionNumStr, claudeStatus, s.Session.Name)
 }
 
 func runFZF(input string, args ...string) (string, error) {
@@ -210,11 +225,55 @@ func extractURL(line string) string {
 }
 
 func extractSessionName(line string) string {
-	// Extract session name from format: "status name - url [name]"
+	// Extract session name from format: "status source: org/repo - 01 [name]"
 	start := strings.LastIndex(line, "[")
 	end := strings.LastIndex(line, "]")
 	if start > 0 && end > start {
 		return line[start+1 : end]
 	}
 	return ""
+}
+
+// parseRepoURL extracts the source type (github/local) and org/repo from a repository URL
+func parseRepoURL(url string) (source, orgRepo string) {
+	// Check if it's a GitHub URL
+	if strings.Contains(url, "github.com") {
+		source = "github"
+		// Handle different GitHub URL formats
+		// HTTPS: https://github.com/org/repo or https://github.com/org/repo.git
+		// SSH: git@github.com:org/repo.git
+		if path, found := strings.CutPrefix(url, "git@github.com:"); found {
+			// SSH format: git@github.com:org/repo.git
+			path = strings.TrimSuffix(path, ".git")
+			orgRepo = path
+		} else if strings.Contains(url, "github.com/") {
+			// HTTPS format: https://github.com/org/repo or https://github.com/org/repo.git
+			parts := strings.Split(url, "github.com/")
+			if len(parts) >= 2 {
+				path := parts[1]
+				path = strings.TrimSuffix(path, ".git")
+				orgRepo = path
+			}
+		}
+	} else {
+		// Assume local repository
+		source = "local"
+		// Extract the last two path components as org/repo
+		url = strings.TrimSuffix(url, "/")
+		parts := strings.Split(url, "/")
+		if len(parts) >= 2 {
+			orgRepo = parts[len(parts)-2] + "/" + parts[len(parts)-1]
+		} else if len(parts) == 1 {
+			orgRepo = parts[0]
+		} else {
+			orgRepo = url
+		}
+	}
+
+	// Fallback if orgRepo is empty
+	if orgRepo == "" {
+		orgRepo = url
+	}
+
+	return source, orgRepo
 }
