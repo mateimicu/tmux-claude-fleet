@@ -3,7 +3,7 @@ package repos
 import (
 	"strings"
 
-	"github.com/mateimicu/tmux-claude-fleet/pkg/types"
+	"github.com/mateimicu/tmux-claude-matrix/pkg/types"
 )
 
 // filterByOrgs filters repositories by organization (case-insensitive)

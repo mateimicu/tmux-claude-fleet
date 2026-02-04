@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/mateimicu/tmux-claude-fleet/internal/git"
-	"github.com/mateimicu/tmux-claude-fleet/pkg/types"
+	"github.com/mateimicu/tmux-claude-matrix/internal/git"
+	"github.com/mateimicu/tmux-claude-matrix/pkg/types"
 )
 
 // LocalSource discovers repositories from a local file

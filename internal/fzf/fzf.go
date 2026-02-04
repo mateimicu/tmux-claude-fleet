@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mateimicu/tmux-claude-fleet/pkg/types"
+	"github.com/mateimicu/tmux-claude-matrix/pkg/types"
 )
 
 // SelectRepository shows FZF interface for repo selection

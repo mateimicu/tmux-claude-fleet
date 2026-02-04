@@ -9,8 +9,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mateimicu/tmux-claude-fleet/internal/config"
-	"github.com/mateimicu/tmux-claude-fleet/internal/repos"
+	"github.com/mateimicu/tmux-claude-matrix/internal/config"
+	"github.com/mateimicu/tmux-claude-matrix/internal/repos"
 )
 
 func refreshCmd() *cobra.Command {

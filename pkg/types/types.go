@@ -10,7 +10,7 @@ type Repository struct {
 	Description string `json:"description"` // Optional description
 }
 
-// Session represents a tmux session managed by fleet
+// Session represents a tmux session managed by matrix
 type Session struct {
 	CreatedAt time.Time `json:"created_at"`
 	Name      string    `json:"name"`

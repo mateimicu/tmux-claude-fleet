@@ -15,9 +15,9 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 
 	rootCmd := &cobra.Command{
-		Use:   "claude-fleet",
+		Use:   "claude-matrix",
 		Short: "Tmux session manager with Claude integration",
-		Long: `Claude Fleet is a tmux session manager that integrates with Claude AI.
+		Long: `Claude Matrix is a tmux session manager that integrates with Claude AI.
 It helps you quickly create development environments for your repositories.`,
 	}
 

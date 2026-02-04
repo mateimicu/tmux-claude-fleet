@@ -3,7 +3,7 @@ package repos
 import (
 	"context"
 
-	"github.com/mateimicu/tmux-claude-fleet/pkg/types"
+	"github.com/mateimicu/tmux-claude-matrix/pkg/types"
 )
 
 // Source is the interface for repository discovery

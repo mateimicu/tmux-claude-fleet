@@ -38,7 +38,7 @@ linters-settings:
           - "sayRepetitiveInsteadOfStutters"
 
   goimports:
-    local-prefixes: github.com/mateimicu/tmux-claude-fleet
+    local-prefixes: github.com/mateimicu/tmux-claude-matrix
 
 issues:
   exclude-use-default: false

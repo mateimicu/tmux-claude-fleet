@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Installation script for tmux-claude-fleet
+# Installation script for tmux-claude-matrix
 
 set -e
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-echo "🚀 Installing tmux-claude-fleet..."
+echo "🚀 Installing tmux-claude-matrix..."
 
 # Check for Go
 if ! command -v go >/dev/null 2>&1; then
@@ -27,7 +27,7 @@ echo "📦 Building binary..."
 cd "$SCRIPT_DIR"
 make build
 
-if [ ! -x "$SCRIPT_DIR/bin/claude-fleet" ]; then
+if [ ! -x "$SCRIPT_DIR/bin/claude-matrix" ]; then
     echo "❌ Build failed!"
     exit 1
 fi
@@ -36,7 +36,7 @@ echo "✓ Binary built successfully"
 
 # Test the binary
 echo "🧪 Testing binary..."
-if ! "$SCRIPT_DIR/bin/claude-fleet" --help >/dev/null 2>&1; then
+if ! "$SCRIPT_DIR/bin/claude-matrix" --help >/dev/null 2>&1; then
     echo "❌ Binary test failed!"
     exit 1
 fi
@@ -44,7 +44,7 @@ fi
 echo "✓ Binary works correctly"
 
 # Create config directory
-CONFIG_DIR="$HOME/.tmux-claude-fleet"
+CONFIG_DIR="$HOME/.tmux-claude-matrix"
 if [ ! -d "$CONFIG_DIR" ]; then
     echo "📁 Creating config directory: $CONFIG_DIR"
     mkdir -p "$CONFIG_DIR"
@@ -79,5 +79,5 @@ echo "   prefix + A  - List sessions (Shift+a)"
 echo "   prefix + D  - Delete session (Shift+d)"
 echo ""
 echo "Or use directly:"
-echo "   $SCRIPT_DIR/bin/claude-fleet create"
+echo "   $SCRIPT_DIR/bin/claude-matrix create"
 echo ""

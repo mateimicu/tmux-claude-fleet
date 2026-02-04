@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mateimicu/tmux-claude-fleet/pkg/types"
+	"github.com/mateimicu/tmux-claude-matrix/pkg/types"
 )
 
 func TestParseRepoURL(t *testing.T) {

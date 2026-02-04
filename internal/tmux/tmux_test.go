@@ -3,7 +3,7 @@ package tmux
 import (
 	"testing"
 
-	"github.com/mateimicu/tmux-claude-fleet/pkg/types"
+	"github.com/mateimicu/tmux-claude-matrix/pkg/types"
 )
 
 func TestAnalyzeClaudeState(t *testing.T) {

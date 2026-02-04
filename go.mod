@@ -1,4 +1,4 @@
-module github.com/mateimicu/tmux-claude-fleet
+module github.com/mateimicu/tmux-claude-matrix
 
 go 1.23
 

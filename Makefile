@@ -1,8 +1,8 @@
 .PHONY: build install test clean cross-compile lint fmt check ci
 
-BINARY_NAME=claude-fleet
+BINARY_NAME=claude-matrix
 BUILD_DIR=./bin
-CMD_DIR=./cmd/claude-fleet
+CMD_DIR=./cmd/claude-matrix
 VERSION?=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS=-ldflags "-X main.Version=$(VERSION)"
 
@@ -49,7 +49,7 @@ fmt:
 	go fmt ./...
 	@if command -v goimports >/dev/null 2>&1; then \
 		echo "Running goimports..."; \
-		goimports -w -local github.com/mateimicu/tmux-claude-fleet .; \
+		goimports -w -local github.com/mateimicu/tmux-claude-matrix .; \
 	else \
 		echo "goimports not found, skipping (install with: go install golang.org/x/tools/cmd/goimports@latest)"; \
 	fi

@@ -34,7 +34,7 @@ jobs:
       - name: Create checksums
         run: |
           cd bin
-          sha256sum claude-fleet-* > checksums.txt
+          sha256sum claude-matrix-* > checksums.txt
           cat checksums.txt
 
       - name: Create release notes
@@ -48,37 +48,37 @@ jobs:
           ### macOS
           ```bash
           # Intel Mac
-          curl -LO https://github.com/mateimicu/tmux-claude-fleet/releases/download/${{ steps.version.outputs.version }}/claude-fleet-darwin-amd64
-          chmod +x claude-fleet-darwin-amd64
-          sudo mv claude-fleet-darwin-amd64 /usr/local/bin/claude-fleet
+          curl -LO https://github.com/mateimicu/tmux-claude-matrix/releases/download/${{ steps.version.outputs.version }}/claude-matrix-darwin-amd64
+          chmod +x claude-matrix-darwin-amd64
+          sudo mv claude-matrix-darwin-amd64 /usr/local/bin/claude-matrix
 
           # Apple Silicon Mac
-          curl -LO https://github.com/mateimicu/tmux-claude-fleet/releases/download/${{ steps.version.outputs.version }}/claude-fleet-darwin-arm64
-          chmod +x claude-fleet-darwin-arm64
-          sudo mv claude-fleet-darwin-arm64 /usr/local/bin/claude-fleet
+          curl -LO https://github.com/mateimicu/tmux-claude-matrix/releases/download/${{ steps.version.outputs.version }}/claude-matrix-darwin-arm64
+          chmod +x claude-matrix-darwin-arm64
+          sudo mv claude-matrix-darwin-arm64 /usr/local/bin/claude-matrix
           ```
 
           ### Linux
           ```bash
           # x86_64
-          curl -LO https://github.com/mateimicu/tmux-claude-fleet/releases/download/${{ steps.version.outputs.version }}/claude-fleet-linux-amd64
-          chmod +x claude-fleet-linux-amd64
-          sudo mv claude-fleet-linux-amd64 /usr/local/bin/claude-fleet
+          curl -LO https://github.com/mateimicu/tmux-claude-matrix/releases/download/${{ steps.version.outputs.version }}/claude-matrix-linux-amd64
+          chmod +x claude-matrix-linux-amd64
+          sudo mv claude-matrix-linux-amd64 /usr/local/bin/claude-matrix
 
           # ARM64
-          curl -LO https://github.com/mateimicu/tmux-claude-fleet/releases/download/${{ steps.version.outputs.version }}/claude-fleet-linux-arm64
-          chmod +x claude-fleet-linux-arm64
-          sudo mv claude-fleet-linux-arm64 /usr/local/bin/claude-fleet
+          curl -LO https://github.com/mateimicu/tmux-claude-matrix/releases/download/${{ steps.version.outputs.version }}/claude-matrix-linux-arm64
+          chmod +x claude-matrix-linux-arm64
+          sudo mv claude-matrix-linux-arm64 /usr/local/bin/claude-matrix
           ```
 
           ### Verify Installation
           ```bash
-          claude-fleet --help
+          claude-matrix --help
           ```
 
           ## What's New
 
-          See [CHANGELOG.md](https://github.com/mateimicu/tmux-claude-fleet/blob/main/CHANGELOG.md) for detailed changes.
+          See [CHANGELOG.md](https://github.com/mateimicu/tmux-claude-matrix/blob/main/CHANGELOG.md) for detailed changes.
 
           ## Checksums
 
@@ -91,10 +91,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            bin/claude-fleet-darwin-amd64
-            bin/claude-fleet-darwin-arm64
-            bin/claude-fleet-linux-amd64
-            bin/claude-fleet-linux-arm64
+            bin/claude-matrix-darwin-amd64
+            bin/claude-matrix-darwin-arm64
+            bin/claude-matrix-linux-amd64
+            bin/claude-matrix-linux-arm64
             bin/checksums.txt
           body_path: release_notes.md
           draft: false

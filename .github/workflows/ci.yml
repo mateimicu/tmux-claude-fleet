@@ -70,13 +70,13 @@ jobs:
         run: make build
 
       - name: Test binary
-        run: ./bin/claude-fleet --help
+        run: ./bin/claude-matrix --help
 
       - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
-          name: claude-fleet-linux-amd64
-          path: bin/claude-fleet
+          name: claude-matrix-linux-amd64
+          path: bin/claude-matrix
           retention-days: 7
 
   lint:
@@ -118,6 +118,6 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: claude-fleet-binaries
-          path: bin/claude-fleet-*
+          name: claude-matrix-binaries
+          path: bin/claude-matrix-*
           retention-days: 7
