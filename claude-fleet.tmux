@@ -47,8 +47,8 @@ if [ ! -x "$BINARY" ]; then
 fi
 
 # Get keybindings
-create_key=$(get_tmux_option "@claude-fleet-create-key" "C")
-list_key=$(get_tmux_option "@claude-fleet-list-key" "L")
+create_key=$(get_tmux_option "@claude-fleet-create-key" "a")
+list_key=$(get_tmux_option "@claude-fleet-list-key" "A")
 delete_key=$(get_tmux_option "@claude-fleet-delete-key" "D")
 
 # Bind keys using new-window

@@ -36,10 +36,10 @@ Add to your `.tmux.conf`:
 ```tmux
 set -g @plugin 'mateimicu/tmux-claude-fleet'
 
-# Optional: customize keybindings
-set -g @claude-fleet-create-key 'C'
-set -g @claude-fleet-list-key 'L'
-set -g @claude-fleet-delete-key 'D'
+# Optional: customize keybindings (defaults shown)
+set -g @claude-fleet-create-key 'a'   # prefix + a
+set -g @claude-fleet-list-key 'A'     # prefix + A (Shift+a)
+set -g @claude-fleet-delete-key 'D'   # prefix + D (Shift+d)
 ```
 
 Then install with TPM:
