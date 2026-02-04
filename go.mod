@@ -1,6 +1,6 @@
 module github.com/mateimicu/tmux-claude-fleet
 
-go 1.25.6
+go 1.23
 
 require github.com/spf13/cobra v1.10.2
 
