@@ -73,7 +73,7 @@ jobs:
         run: ./bin/claude-fleet --help
 
       - name: Upload binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: claude-fleet-linux-amd64
           path: bin/claude-fleet
@@ -116,7 +116,7 @@ jobs:
         run: make cross-compile
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: claude-fleet-binaries
           path: bin/claude-fleet-*
