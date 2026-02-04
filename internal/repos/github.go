@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/mateimicu/tmux-claude-fleet/pkg/types"
@@ -49,19 +48,21 @@ type cacheData struct {
 func (g *GitHubSource) List(ctx context.Context) ([]*types.Repository, error) {
 	// Check cache
 	if repos, ok := g.checkCache(); ok {
-		return repos, nil
+		// Apply organization filter to cached repos
+		return g.filterByOrgs(repos), nil
 	}
 
-	// Fetch from API
+	// Fetch from API (gets all repos)
 	repos, err := g.fetchFromAPI(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// Update cache
+	// Update cache (with all repos for flexibility)
 	g.saveCache(repos)
 
-	return repos, nil
+	// Apply organization filter before returning
+	return g.filterByOrgs(repos), nil
 }
 
 func (g *GitHubSource) fetchFromAPI(ctx context.Context) ([]*types.Repository, error) {
@@ -101,37 +102,13 @@ func (g *GitHubSource) fetchFromAPI(ctx context.Context) ([]*types.Repository, e
 		}
 
 		for _, gr := range ghRepos {
-			// Filter by organization if specified
-			if len(g.orgs) > 0 {
-				repo := &types.Repository{
-					Source:      "github",
-					URL:         gr.CloneURL,
-					Name:        gr.FullName,
-					Description: gr.Description,
-				}
-
-				// Extract org from full name (org/repo)
-				parts := strings.Split(gr.FullName, "/")
-				if len(parts) >= 2 {
-					repoOrg := parts[0]
-
-					// Check if this org is in the filter list
-					for _, allowedOrg := range g.orgs {
-						if repoOrg == allowedOrg {
-							allRepos = append(allRepos, repo)
-							break
-						}
-					}
-				}
-			} else {
-				// No filter, include all repos
-				allRepos = append(allRepos, &types.Repository{
-					Source:      "github",
-					URL:         gr.CloneURL,
-					Name:        gr.FullName,
-					Description: gr.Description,
-				})
-			}
+			// Add all repos (filtering will be done by filterByOrgs)
+			allRepos = append(allRepos, &types.Repository{
+				Source:      "github",
+				URL:         gr.CloneURL,
+				Name:        gr.FullName,
+				Description: gr.Description,
+			})
 		}
 
 		// Check if there are more pages
