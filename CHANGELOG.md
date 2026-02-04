@@ -20,14 +20,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive error handling and logging
 - Test suite with BATS
 - Full documentation and examples
+- `refresh` command to manually update repository cache
+- Cache age display when using cached data
+- Progress feedback during GitHub API pagination
+
+### Changed
+- **PERFORMANCE**: Increased default cache TTL from 5 minutes to 30 minutes
+- Improved cache feedback showing age and source (cached vs API fetch)
+- Enhanced GitHub API fetch with pagination progress indicators
 
 ### Features
 - Create sessions: Clone repos and start tmux with Claude integration
 - List sessions: Browse with rich preview showing status and git history
 - Delete sessions: Clean up sessions and optionally remove cloned repos
+- Refresh cache: Force update cached GitHub repositories
 - GitHub integration: Fetch repos via gh CLI or GITHUB_TOKEN
 - Local config: Manage repository list in text file
-- Caching: Cache GitHub API responses for performance
+- Intelligent caching: Cache GitHub API responses with 30-minute TTL
+  - Shows cache age when using cached data (e.g., "age: 5.2m")
+  - Automatic cache expiration and refresh
+  - Manual refresh with `claude-fleet refresh` command
 - Compatibility: Support tmux 2.0+ with fallback for older versions
 
 ### Technical Highlights

@@ -51,7 +51,7 @@ func defaults() *types.Config {
 		ClaudeBin:          findClaudeBin(),
 		ClaudeArgs:         []string{"--dangerously-skip-permissions"},
 		CacheDir:           filepath.Join(home, ".tmux-claude-fleet/.cache"),
-		CacheTTL:           5 * time.Minute,
+		CacheTTL:           30 * time.Minute, // Increased from 5m to 30m for better performance
 		SessionsDir:        filepath.Join(home, ".tmux-claude-fleet/sessions"),
 	}
 }
