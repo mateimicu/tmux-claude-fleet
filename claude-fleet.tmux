@@ -3,6 +3,7 @@
 # Entry point for tmux plugin manager
 
 CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+BINARY="$CURRENT_DIR/bin/claude-fleet"
 
 # Get tmux option value
 get_tmux_option() {
@@ -16,40 +17,20 @@ get_tmux_option() {
     fi
 }
 
-# Check tmux version
-check_tmux_version() {
-    local version=$(tmux -V | cut -d' ' -f2 | cut -d'-' -f1)
-    local major=$(echo "$version" | cut -d'.' -f1)
-    local minor=$(echo "$version" | cut -d'.' -f2)
+# Check if binary exists
+if [ ! -x "$BINARY" ]; then
+    tmux display-message "claude-fleet: Binary not found. Run: make install"
+    exit 1
+fi
 
-    # Return 0 if version >= 3.2, 1 otherwise
-    if [ "$major" -gt 3 ] || ([ "$major" -eq 3 ] && [ "$minor" -ge 2 ]); then
-        return 0
-    else
-        return 1
-    fi
-}
-
-# Get keybindings from options
+# Get keybindings
 create_key=$(get_tmux_option "@claude-fleet-create-key" "C")
 list_key=$(get_tmux_option "@claude-fleet-list-key" "L")
+delete_key=$(get_tmux_option "@claude-fleet-delete-key" "D")
 
-# Check if tmux supports display-popup (3.2+)
-if check_tmux_version; then
-    # Use display-popup for tmux 3.2+
-    tmux bind-key "$create_key" display-popup -E -w 80% -h 80% \
-        "$CURRENT_DIR/scripts/create-session.sh"
+# Bind keys using new-window
+tmux bind-key "$create_key" new-window "$BINARY create"
+tmux bind-key "$list_key" new-window "$BINARY list"
+tmux bind-key "$delete_key" new-window "$BINARY delete"
 
-    tmux bind-key "$list_key" display-popup -E -w 80% -h 80% \
-        "$CURRENT_DIR/scripts/list-sessions.sh"
-else
-    # Fall back to new-window for older tmux versions
-    tmux bind-key "$create_key" new-window \
-        "$CURRENT_DIR/scripts/create-session.sh"
-
-    tmux bind-key "$list_key" new-window \
-        "$CURRENT_DIR/scripts/list-sessions.sh"
-
-    # Show warning message
-    tmux display-message "tmux-claude-fleet: Using new-window mode (tmux 3.2+ recommended for popup support)"
-fi
+tmux display-message "claude-fleet: Plugin loaded (Go version)"

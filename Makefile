@@ -1,58 +1,72 @@
-.PHONY: test test-unit test-lib clean install check-deps verify
+.PHONY: build install test clean cross-compile
 
-# Run all tests
-test: check-deps test-unit
+BINARY_NAME=claude-fleet
+BUILD_DIR=./bin
+CMD_DIR=./cmd/claude-fleet
+VERSION?=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+LDFLAGS=-ldflags "-X main.Version=$(VERSION)"
 
-# Run unit tests only
-test-unit:
-	@echo "Running unit tests..."
-	@bats tests/lib/*.bats
+# Build for current platform
+build:
+	@echo "Building $(BINARY_NAME)..."
+	@mkdir -p $(BUILD_DIR)
+	go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) $(CMD_DIR)
+	@echo "✓ Built: $(BUILD_DIR)/$(BINARY_NAME)"
 
-# Run specific test file
-test-file:
-	@if [ -z "$(FILE)" ]; then \
-		echo "Usage: make test-file FILE=tests/lib/common.bats"; \
-		exit 1; \
-	fi
-	@bats $(FILE)
+# Install to bin directory
+install: build
+	@echo "✓ Installed to $(BUILD_DIR)/$(BINARY_NAME)"
 
-# Check for required dependencies
-check-deps:
-	@echo "Checking dependencies..."
-	@command -v tmux >/dev/null 2>&1 || { echo "Error: tmux not found"; exit 1; }
-	@command -v fzf >/dev/null 2>&1 || { echo "Error: fzf not found"; exit 1; }
-	@command -v git >/dev/null 2>&1 || { echo "Error: git not found"; exit 1; }
-	@command -v bats >/dev/null 2>&1 || { echo "Error: bats not found. Install with: brew install bats-core"; exit 1; }
-	@echo "All dependencies found!"
+# Run tests
+test:
+	@echo "Running tests..."
+	go test -v -race -cover ./...
 
-# Clean temporary files
+# Clean build artifacts
 clean:
-	@echo "Cleaning temporary files..."
-	@rm -rf ~/.tmux-claude-fleet/.cache/*
-	@find . -name "*.log" -delete
-	@echo "Clean complete"
+	@echo "Cleaning build artifacts..."
+	rm -rf $(BUILD_DIR)
+	go clean
 
-# Install plugin (for development)
-install:
-	@echo "Installing plugin to ~/.tmux/plugins/tmux-claude-fleet"
-	@mkdir -p ~/.tmux/plugins
-	@ln -sf $(PWD) ~/.tmux/plugins/tmux-claude-fleet
-	@echo "Plugin installed! Add to .tmux.conf:"
-	@echo "  run-shell ~/.tmux/plugins/tmux-claude-fleet/claude-fleet.tmux"
+# Cross-compile for macOS and Linux
+cross-compile:
+	@echo "Cross-compiling for multiple platforms..."
+	@mkdir -p $(BUILD_DIR)
+	@echo "Building for macOS (amd64)..."
+	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-amd64 $(CMD_DIR)
+	@echo "Building for macOS (arm64)..."
+	GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-arm64 $(CMD_DIR)
+	@echo "Building for Linux (amd64)..."
+	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64 $(CMD_DIR)
+	@echo "Building for Linux (arm64)..."
+	GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-arm64 $(CMD_DIR)
+	@echo "✓ Cross-compilation complete!"
+	@ls -lh $(BUILD_DIR)
 
-# Verify installation
-verify:
-	@./scripts/verify-install.sh
+# Format code
+fmt:
+	@echo "Formatting code..."
+	go fmt ./...
+
+# Run the binary
+run: build
+	$(BUILD_DIR)/$(BINARY_NAME)
+
+# Development build with race detector
+dev:
+	@echo "Building with race detector..."
+	@mkdir -p $(BUILD_DIR)
+	go build -race $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) $(CMD_DIR)
 
 # Show help
 help:
-	@echo "Tmux Claude Fleet - Makefile targets:"
-	@echo ""
-	@echo "  make test          - Run all tests"
-	@echo "  make test-unit     - Run unit tests only"
-	@echo "  make test-file FILE=path/to/test.bats - Run specific test file"
-	@echo "  make check-deps    - Check for required dependencies"
-	@echo "  make clean         - Clean temporary files"
-	@echo "  make install       - Install plugin for development"
-	@echo "  make verify        - Verify installation"
-	@echo "  make help          - Show this help message"
+	@echo "Available targets:"
+	@echo "  build          - Build for current platform"
+	@echo "  install        - Build and install to bin directory"
+	@echo "  test           - Run tests"
+	@echo "  clean          - Clean build artifacts"
+	@echo "  cross-compile  - Build for macOS and Linux (amd64/arm64)"
+	@echo "  fmt            - Format code"
+	@echo "  run            - Build and run"
+	@echo "  dev            - Build with race detector"
+	@echo "  help           - Show this help"

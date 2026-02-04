@@ -1,19 +1,35 @@
-# Logs
+# Binaries
+/bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binaries
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Go workspace file
+go.work
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
 *.log
 
-# Cache
-.cache/
-
-# Test artifacts
-tests/.tmp/
-
-# Development
-.DS_Store
-.vscode/
-.idea/
-
-# User data (should not be in repo)
-repos/
-sessions/
-config
-repos.txt
+# Build artifacts
+dist/
+release/

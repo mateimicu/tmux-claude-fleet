@@ -1,0 +1,20 @@
+# Tmux Claude Fleet - Local Repository Configuration
+#
+# Add one repository URL per line. Lines starting with # are comments.
+# You can optionally add a description after the URL using # separator.
+#
+# Supported formats:
+#   - HTTPS: https://github.com/user/repo
+#   - SSH: git@github.com:user/repo.git
+#
+# Examples:
+
+# Development projects
+https://github.com/tmux-plugins/tpm # Tmux Plugin Manager
+https://github.com/junegunn/fzf # Command-line fuzzy finder
+
+# Personal repositories
+# https://github.com/yourusername/yourrepo # Your project
+
+# Work repositories
+# git@github.com:company/project.git # Company project
