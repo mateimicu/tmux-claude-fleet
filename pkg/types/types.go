@@ -12,10 +12,10 @@ type Repository struct {
 
 // Session represents a tmux session managed by fleet
 type Session struct {
+	CreatedAt time.Time `json:"created_at"`
 	Name      string    `json:"name"`
 	RepoURL   string    `json:"repo_url"`
 	ClonePath string    `json:"clone_path"`
-	CreatedAt time.Time `json:"created_at"` // nolint:govet // Not reordering for backwards compatibility
 }
 
 // SessionStatus represents runtime session information
@@ -27,13 +27,13 @@ type SessionStatus struct {
 
 // Config represents plugin configuration
 type Config struct {
-	CloneDir           string
+	CacheTTL           time.Duration
 	GitHubOrgs         []string // Filter repos by organization
+	ClaudeArgs         []string
+	CloneDir           string
 	LocalReposFile     string
 	ClaudeBin          string
-	ClaudeArgs         []string
 	CacheDir           string
-	CacheTTL           time.Duration
 	SessionsDir        string
 	GitHubEnabled      bool
 	LocalConfigEnabled bool

@@ -14,11 +14,11 @@ import (
 
 // GitHubSource discovers repositories from GitHub
 type GitHubSource struct {
+	client   *http.Client
+	orgs     []string // Filter by these organizations (empty = all)
 	token    string
 	cacheDir string
 	cacheTTL time.Duration
-	client   *http.Client
-	orgs     []string // Filter by these organizations (empty = all)
 }
 
 // NewGitHubSource creates a new GitHub repository source
@@ -167,5 +167,8 @@ func (g *GitHubSource) saveCache(repos []*types.Repository) {
 	}
 
 	cachePath := filepath.Join(g.cacheDir, "github-repos.json")
-	_ = os.WriteFile(cachePath, data, 0644)
+	if err := os.WriteFile(cachePath, data, 0644); err != nil {
+		// Silently ignore cache write errors
+		return
+	}
 }

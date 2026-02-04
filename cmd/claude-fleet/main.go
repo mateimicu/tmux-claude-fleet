@@ -13,7 +13,6 @@ import (
 func main() {
 	// Setup context with cancellation
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer cancel()
 
 	rootCmd := &cobra.Command{
 		Use:   "claude-fleet",
@@ -34,4 +33,5 @@ It helps you quickly create development environments for your repositories.`,
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+	cancel()
 }
