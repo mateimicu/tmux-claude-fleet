@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/mateimicu/tmux-claude-fleet/internal/config"
 	"github.com/mateimicu/tmux-claude-fleet/internal/fzf"
 	"github.com/mateimicu/tmux-claude-fleet/internal/git"
@@ -15,7 +17,6 @@ import (
 	"github.com/mateimicu/tmux-claude-fleet/internal/session"
 	"github.com/mateimicu/tmux-claude-fleet/internal/tmux"
 	"github.com/mateimicu/tmux-claude-fleet/pkg/types"
-	"github.com/spf13/cobra"
 )
 
 func createCmd() *cobra.Command {

@@ -6,9 +6,10 @@ import (
 	"os"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/mateimicu/tmux-claude-fleet/internal/config"
 	"github.com/mateimicu/tmux-claude-fleet/internal/repos"
-	"github.com/spf13/cobra"
 )
 
 func diagnoseCmd() *cobra.Command {
