@@ -50,10 +50,17 @@ fi
 create_key=$(get_tmux_option "@claude-fleet-create-key" "a")
 list_key=$(get_tmux_option "@claude-fleet-list-key" "A")
 delete_key=$(get_tmux_option "@claude-fleet-delete-key" "D")
+use_popup=$(get_tmux_option "@claude-fleet-use-popup" "true")
 
-# Bind keys using new-window
-tmux bind-key "$create_key" new-window "$BINARY create"
-tmux bind-key "$list_key" new-window "$BINARY list"
-tmux bind-key "$delete_key" new-window "$BINARY delete"
+# Bind keys using popup or new-window
+if [ "$use_popup" = "true" ]; then
+    tmux bind-key "$create_key" display-popup -E "$BINARY create"
+    tmux bind-key "$list_key" display-popup -E "$BINARY list"
+    tmux bind-key "$delete_key" display-popup -E "$BINARY delete"
+else
+    tmux bind-key "$create_key" new-window "$BINARY create"
+    tmux bind-key "$list_key" new-window "$BINARY list"
+    tmux bind-key "$delete_key" new-window "$BINARY delete"
+fi
 
 tmux display-message "claude-fleet: Plugin loaded (Go version)"
