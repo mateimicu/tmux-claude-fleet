@@ -286,7 +286,7 @@ func (m *Manager) getPaneLastActivity(session, window string) time.Time {
 	// Parse Unix timestamp
 	timestamp := strings.TrimSpace(string(output))
 	var unixTime int64
-	fmt.Sscanf(timestamp, "%d", &unixTime)
+	fmt.Sscanf(timestamp, "%d", &unixTime) //nolint:errcheck // Best-effort timestamp parsing
 	if unixTime > 0 {
 		return time.Unix(unixTime, 0)
 	}

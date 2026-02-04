@@ -61,7 +61,7 @@ func (g *GitHubSource) List(ctx context.Context) ([]*types.Repository, error) {
 	// Check cache
 	if repos, age, ok := g.checkCache(); ok {
 		if g.logger != nil {
-			fmt.Fprintf(g.logger, "  ✓ Using cached GitHub repos (age: %s)\n", formatDuration(age))
+			fmt.Fprintf(g.logger, "  ✓ Using cached GitHub repos (age: %s)\n", formatDuration(age)) //nolint:errcheck // Logging output is non-critical
 		}
 		// Apply organization filter to cached repos
 		return g.filterByOrgs(repos), nil
@@ -69,7 +69,7 @@ func (g *GitHubSource) List(ctx context.Context) ([]*types.Repository, error) {
 
 	// Fetch from API (gets all repos)
 	if g.logger != nil {
-		fmt.Fprintf(g.logger, "  ⟳ Fetching GitHub repos from API...\n")
+		fmt.Fprintf(g.logger, "  ⟳ Fetching GitHub repos from API...\n") //nolint:errcheck // Logging output is non-critical
 	}
 	repos, err := g.fetchFromAPI(ctx)
 	if err != nil {
@@ -79,7 +79,7 @@ func (g *GitHubSource) List(ctx context.Context) ([]*types.Repository, error) {
 	// Update cache (with all repos for flexibility)
 	g.saveCache(repos)
 	if g.logger != nil {
-		fmt.Fprintf(g.logger, "  ✓ Cached %d repos for future use\n", len(repos))
+		fmt.Fprintf(g.logger, "  ✓ Cached %d repos for future use\n", len(repos)) //nolint:errcheck // Logging output is non-critical
 	}
 
 	// Apply organization filter before returning
@@ -149,7 +149,7 @@ func (g *GitHubSource) fetchFromAPI(ctx context.Context) ([]*types.Repository, e
 
 		// Show progress for multiple pages
 		if page > 1 && g.logger != nil {
-			fmt.Fprintf(g.logger, "  ⟳ Fetched %d repos (page %d)...\n", len(allRepos), page)
+			fmt.Fprintf(g.logger, "  ⟳ Fetched %d repos (page %d)...\n", len(allRepos), page) //nolint:errcheck // Logging output is non-critical
 		}
 
 		// Check if there are more pages

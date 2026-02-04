@@ -26,7 +26,8 @@ linters-settings:
   govet:
     enable-all: true
     disable:
-      - shadow      # Reports variables that shadow other variables
+      - shadow        # Reports variables that shadow other variables
+      - fieldalignment # Field alignment is a micro-optimization that can reduce code readability
 
   revive:
     rules:
