@@ -48,8 +48,35 @@ func SelectRepository(repos []*types.Repository) (*types.Repository, error) {
 	return nil, fmt.Errorf("selected repo not found")
 }
 
+// SessionAction represents an action to perform on a session
+type SessionAction string
+
+const (
+	SessionActionSwitch SessionAction = "switch"
+	SessionActionDelete SessionAction = "delete"
+	SessionActionCancel SessionAction = "cancel"
+)
+
+// SessionSelection represents the result of session selection
+type SessionSelection struct {
+	Session *types.SessionStatus
+	Action  SessionAction
+}
+
 // SelectSession shows FZF interface for session selection
 func SelectSession(sessions []*types.SessionStatus) (*types.SessionStatus, error) {
+	selection, err := SelectSessionWithAction(sessions)
+	if err != nil {
+		return nil, err
+	}
+	if selection.Action == SessionActionCancel {
+		return nil, fmt.Errorf("selection cancelled")
+	}
+	return selection.Session, nil
+}
+
+// SelectSessionWithAction shows FZF interface for session selection with action support
+func SelectSessionWithAction(sessions []*types.SessionStatus) (*SessionSelection, error) {
 	if len(sessions) == 0 {
 		return nil, fmt.Errorf("no sessions found")
 	}
@@ -61,16 +88,18 @@ func SelectSession(sessions []*types.SessionStatus) (*types.SessionStatus, error
 		lines = append(lines, line)
 	}
 
-	// Run FZF
-	selected, err := runFZF(strings.Join(lines, "\n"),
+	// Run FZF with action keys
+	key, selected, err := runFZFWithExpect(
+		strings.Join(lines, "\n"),
+		[]string{"ctrl-d"},
 		"--prompt=🚀 Select session > ",
 		"--reverse",
 		"--border=rounded",
-		"--header=↑↓ navigate | enter: switch | ctrl-c: cancel",
+		"--header=↑↓ navigate | enter: switch | ctrl-d: delete | ctrl-c: cancel",
 		"--height=40%",
 	)
 	if err != nil {
-		return nil, err
+		return &SessionSelection{Action: SessionActionCancel}, err
 	}
 
 	// Extract session name from selected line
@@ -79,7 +108,14 @@ func SelectSession(sessions []*types.SessionStatus) (*types.SessionStatus, error
 	// Find original session
 	for _, sess := range sessions {
 		if sess.Session.Name == name {
-			return sess, nil
+			action := SessionActionSwitch
+			if key == "ctrl-d" {
+				action = SessionActionDelete
+			}
+			return &SessionSelection{
+				Session: sess,
+				Action:  action,
+			}, nil
 		}
 	}
 
@@ -121,6 +157,43 @@ func runFZF(input string, args ...string) (string, error) {
 	}
 
 	return strings.TrimSpace(out.String()), nil
+}
+
+// runFZFWithExpect runs FZF with --expect to capture key presses
+// Returns the key pressed and the selected line
+func runFZFWithExpect(input string, expectedKeys []string, args ...string) (string, string, error) {
+	// Add --expect flag with keys
+	expectArg := "--expect=" + strings.Join(expectedKeys, ",")
+	allArgs := append([]string{expectArg}, args...)
+
+	cmd := exec.Command("fzf", allArgs...)
+	cmd.Stdin = strings.NewReader(input)
+
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return "", "", err
+	}
+
+	// Output format with --expect:
+	// Line 1: key pressed (empty if Enter)
+	// Line 2: selected item
+	output := strings.TrimSpace(out.String())
+	lines := strings.SplitN(output, "\n", 2)
+
+	if len(lines) == 0 {
+		return "", "", fmt.Errorf("no output from fzf")
+	}
+
+	if len(lines) == 1 {
+		// Only one line means Enter was pressed
+		return "", lines[0], nil
+	}
+
+	// Two lines: first is key, second is selection
+	return lines[0], lines[1], nil
 }
 
 func extractURL(line string) string {
