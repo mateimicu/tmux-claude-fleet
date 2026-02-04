@@ -5,6 +5,9 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
+
+	"github.com/mateimicu/tmux-claude-fleet/pkg/types"
 )
 
 // Manager handles tmux operations
@@ -159,4 +162,196 @@ func (m *Manager) ListSessions() ([]string, error) {
 func (m *Manager) SelectWindow(session, window string) error {
 	cmd := exec.Command("tmux", "select-window", "-t", fmt.Sprintf("%s:%s", session, window))
 	return cmd.Run()
+}
+
+// GetDetailedClaudeState returns the detailed state of Claude in a session
+func (m *Manager) GetDetailedClaudeState(session string) (types.ClaudeState, time.Time) {
+	// First check if Claude window exists
+	cmd := exec.Command("tmux", "list-windows", "-t", session, "-F", "#{window_name}")
+	output, err := cmd.Output()
+	if err != nil {
+		return types.ClaudeStateStopped, time.Time{}
+	}
+
+	hasClaudeWindow := false
+	windows := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, w := range windows {
+		if w == "claude" {
+			hasClaudeWindow = true
+			break
+		}
+	}
+
+	if !hasClaudeWindow {
+		return types.ClaudeStateStopped, time.Time{}
+	}
+
+	// Get pane PID
+	cmd = exec.Command("tmux", "list-panes", "-t", session+":claude", "-F", "#{pane_pid}")
+	output, err = cmd.Output()
+	if err != nil {
+		return types.ClaudeStateStopped, time.Time{}
+	}
+
+	pids := strings.Split(strings.TrimSpace(string(output)), "\n")
+	var claudePID string
+	for _, pid := range pids {
+		if m.processIsClaude(pid) {
+			claudePID = pid
+			break
+		}
+	}
+
+	if claudePID == "" {
+		return types.ClaudeStateStopped, time.Time{}
+	}
+
+	// Get process state
+	processState, err := m.getProcessState(claudePID)
+	if err != nil {
+		return types.ClaudeStateUnknown, time.Time{}
+	}
+
+	// Capture pane content to analyze
+	content, err := m.capturePaneContent(session, "claude", 50)
+	if err != nil {
+		return types.ClaudeStateUnknown, time.Time{}
+	}
+
+	// Get last activity time from pane
+	lastActivity := m.getPaneLastActivity(session, "claude")
+
+	// Analyze state based on process state and output
+	state := m.analyzeClaudeState(processState, content)
+	return state, lastActivity
+}
+
+// capturePaneContent captures the last N lines from a pane
+func (m *Manager) capturePaneContent(session, window string, lines int) (string, error) {
+	target := fmt.Sprintf("%s:%s", session, window)
+	cmd := exec.Command("tmux", "capture-pane", "-t", target, "-p", "-S", fmt.Sprintf("-%d", lines))
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return string(output), nil
+}
+
+// getProcessState returns the process state (R, S, D, Z, etc.)
+func (m *Manager) getProcessState(pid string) (string, error) {
+	// First get child PIDs
+	cmd := exec.Command("pgrep", "-P", pid)
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+
+	childPids := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, childPid := range childPids {
+		if childPid == "" {
+			continue
+		}
+
+		// Check if this is the claude process
+		psCmd := exec.Command("ps", "-p", childPid, "-o", "comm=")
+		psOutput, err := psCmd.Output()
+		if err != nil {
+			continue
+		}
+
+		processName := strings.TrimSpace(string(psOutput))
+		if strings.Contains(processName, "claude") {
+			// Get state for this process
+			stateCmd := exec.Command("ps", "-p", childPid, "-o", "state=")
+			stateOutput, err := stateCmd.Output()
+			if err != nil {
+				return "", err
+			}
+			return strings.TrimSpace(string(stateOutput)), nil
+		}
+	}
+
+	return "", fmt.Errorf("claude process not found")
+}
+
+// getPaneLastActivity returns the last activity time for a pane
+func (m *Manager) getPaneLastActivity(session, window string) time.Time {
+	target := fmt.Sprintf("%s:%s", session, window)
+	cmd := exec.Command("tmux", "display-message", "-t", target, "-p", "#{pane_activity}")
+	output, err := cmd.Output()
+	if err != nil {
+		return time.Time{}
+	}
+
+	// Parse Unix timestamp
+	timestamp := strings.TrimSpace(string(output))
+	var unixTime int64
+	fmt.Sscanf(timestamp, "%d", &unixTime)
+	if unixTime > 0 {
+		return time.Unix(unixTime, 0)
+	}
+
+	return time.Time{}
+}
+
+// analyzeClaudeState analyzes process state and output to determine Claude's state
+func (m *Manager) analyzeClaudeState(processState, content string) types.ClaudeState {
+	// Check for error indicators in output
+	errorIndicators := []string{
+		"Error:",
+		"error:",
+		"ERROR:",
+		"Exception:",
+		"Traceback",
+		"panic:",
+		"fatal:",
+	}
+
+	for _, indicator := range errorIndicators {
+		if strings.Contains(content, indicator) {
+			return types.ClaudeStateError
+		}
+	}
+
+	// Check for input waiting indicators
+	inputIndicators := []string{
+		"Continue? (y/n)",
+		"Enter your choice:",
+		"Waiting for",
+		"[y/N]",
+		"Press any key",
+		"(yes/no)",
+		"Continue?",
+	}
+
+	for _, indicator := range inputIndicators {
+		if strings.Contains(content, indicator) {
+			return types.ClaudeStateWaitingForInput
+		}
+	}
+
+	// Check process state
+	// R = Running, S = Sleeping/Idle, D = Disk wait, Z = Zombie
+	switch processState {
+	case "R", "R+":
+		return types.ClaudeStateRunning
+	case "S", "S+", "I", "I+":
+		// Sleeping - could be idle or waiting
+		// Check if there's recent output suggesting completion
+		if strings.Contains(content, "completed") ||
+			strings.Contains(content, "Done") ||
+			strings.Contains(content, "finished") {
+			return types.ClaudeStateIdle
+		}
+		// If sleeping with cursor visible, likely waiting for input
+		return types.ClaudeStateWaitingForInput
+	case "D", "D+":
+		// Disk wait - actively working
+		return types.ClaudeStateRunning
+	case "Z":
+		// Zombie process
+		return types.ClaudeStateError
+	default:
+		return types.ClaudeStateUnknown
+	}
 }

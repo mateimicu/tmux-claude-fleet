@@ -141,15 +141,15 @@ func formatRepoLine(r *types.Repository) string {
 }
 
 func formatSessionLine(s *types.SessionStatus, sessionNum, totalSessions int) string {
+	// Tmux session status
 	status := "⚫"
 	if s.TmuxActive {
 		status = "🟢"
 	}
 
-	claudeStatus := ""
-	if s.ClaudeRunning {
-		claudeStatus = " [Claude ✓]"
-	}
+	// Claude state with detailed indicators
+	claudeStatus := getClaudeStatusIndicator(s.ClaudeState)
+	claudeDesc := getClaudeStateDescription(s.ClaudeState)
 
 	// Parse repo URL to get source and org/repo
 	source, orgRepo := parseRepoURL(s.Session.RepoURL)
@@ -158,8 +158,44 @@ func formatSessionLine(s *types.SessionStatus, sessionNum, totalSessions int) st
 	paddingWidth := len(fmt.Sprintf("%d", totalSessions))
 	sessionNumStr := fmt.Sprintf("%0*d", paddingWidth, sessionNum)
 
-	return fmt.Sprintf("%s %s: %s - %s%s [%s]",
-		status, source, orgRepo, sessionNumStr, claudeStatus, s.Session.Name)
+	return fmt.Sprintf("%s %s: %s - %s %s %s [%s]",
+		status, source, orgRepo, sessionNumStr, claudeStatus, claudeDesc, s.Session.Name)
+}
+
+// getClaudeStatusIndicator returns the emoji indicator for Claude state
+func getClaudeStatusIndicator(state types.ClaudeState) string {
+	switch state {
+	case types.ClaudeStateRunning:
+		return "🟢"
+	case types.ClaudeStateWaitingForInput:
+		return "⏸️"
+	case types.ClaudeStateIdle:
+		return "💤"
+	case types.ClaudeStateError:
+		return "⚠️"
+	case types.ClaudeStateStopped:
+		return "⚫"
+	default:
+		return "❓"
+	}
+}
+
+// getClaudeStateDescription returns a human-readable description
+func getClaudeStateDescription(state types.ClaudeState) string {
+	switch state {
+	case types.ClaudeStateRunning:
+		return "[Claude: Active]"
+	case types.ClaudeStateWaitingForInput:
+		return "[Claude: Needs Input]"
+	case types.ClaudeStateIdle:
+		return "[Claude: Idle]"
+	case types.ClaudeStateError:
+		return "[Claude: Error]"
+	case types.ClaudeStateStopped:
+		return "[Claude: Stopped]"
+	default:
+		return "[Claude: Unknown]"
+	}
 }
 
 func runFZF(input string, args ...string) (string, error) {

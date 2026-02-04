@@ -1,6 +1,7 @@
 package fzf
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -59,13 +60,63 @@ func TestParseRepoURL(t *testing.T) {
 	}
 }
 
+func TestGetClaudeStatusIndicator(t *testing.T) {
+	tests := []struct {
+		name     string
+		state    types.ClaudeState
+		expected string
+	}{
+		{"Running", types.ClaudeStateRunning, "🟢"},
+		{"Waiting for input", types.ClaudeStateWaitingForInput, "⏸️"},
+		{"Idle", types.ClaudeStateIdle, "💤"},
+		{"Error", types.ClaudeStateError, "⚠️"},
+		{"Stopped", types.ClaudeStateStopped, "⚫"},
+		{"Unknown", types.ClaudeStateUnknown, "❓"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getClaudeStatusIndicator(tt.state)
+			if result != tt.expected {
+				t.Errorf("getClaudeStatusIndicator(%q) = %q, expected %q",
+					tt.state, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestGetClaudeStateDescription(t *testing.T) {
+	tests := []struct {
+		name     string
+		state    types.ClaudeState
+		expected string
+	}{
+		{"Running", types.ClaudeStateRunning, "[Claude: Active]"},
+		{"Waiting for input", types.ClaudeStateWaitingForInput, "[Claude: Needs Input]"},
+		{"Idle", types.ClaudeStateIdle, "[Claude: Idle]"},
+		{"Error", types.ClaudeStateError, "[Claude: Error]"},
+		{"Stopped", types.ClaudeStateStopped, "[Claude: Stopped]"},
+		{"Unknown", types.ClaudeStateUnknown, "[Claude: Unknown]"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getClaudeStateDescription(tt.state)
+			if result != tt.expected {
+				t.Errorf("getClaudeStateDescription(%q) = %q, expected %q",
+					tt.state, result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestFormatSessionLine(t *testing.T) {
 	tests := []struct {
 		name          string
 		session       *types.SessionStatus
 		sessionNum    int
 		totalSessions int
-		expected      string
+		wantContains  []string
 	}{
 		{
 			name: "GitHub repo, active tmux, Claude running",
@@ -75,12 +126,12 @@ func TestFormatSessionLine(t *testing.T) {
 					RepoURL:   "https://github.com/mateimicu/tmux-claude-fleet",
 					CreatedAt: time.Now(),
 				},
-				TmuxActive:    true,
-				ClaudeRunning: true,
+				TmuxActive:  true,
+				ClaudeState: types.ClaudeStateRunning,
 			},
 			sessionNum:    1,
 			totalSessions: 10,
-			expected:      "🟢 github: mateimicu/tmux-claude-fleet - 01 [Claude ✓] [test-session-1]",
+			wantContains:  []string{"🟢", "github:", "mateimicu/tmux-claude-fleet", "01", "[Claude: Active]", "[test-session-1]"},
 		},
 		{
 			name: "Local repo, inactive",
@@ -90,35 +141,37 @@ func TestFormatSessionLine(t *testing.T) {
 					RepoURL:   "/home/user/projects/myorg/myrepo",
 					CreatedAt: time.Now(),
 				},
-				TmuxActive:    false,
-				ClaudeRunning: false,
+				TmuxActive:  false,
+				ClaudeState: types.ClaudeStateStopped,
 			},
 			sessionNum:    5,
 			totalSessions: 10,
-			expected:      "⚫ local: myorg/myrepo - 05 [local-project]",
+			wantContains:  []string{"⚫", "local:", "myorg/myrepo", "05", "[Claude: Stopped]", "[local-project]"},
 		},
 		{
-			name: "Three-digit padding",
+			name: "Three-digit padding with waiting state",
 			session: &types.SessionStatus{
 				Session: &types.Session{
 					Name:      "project-100",
 					RepoURL:   "git@github.com:user/repo.git",
 					CreatedAt: time.Now(),
 				},
-				TmuxActive:    true,
-				ClaudeRunning: false,
+				TmuxActive:  true,
+				ClaudeState: types.ClaudeStateWaitingForInput,
 			},
 			sessionNum:    1,
 			totalSessions: 150,
-			expected:      "🟢 github: user/repo - 001 [project-100]",
+			wantContains:  []string{"🟢", "github:", "user/repo", "001", "⏸️", "[Claude: Needs Input]", "[project-100]"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := formatSessionLine(tt.session, tt.sessionNum, tt.totalSessions)
-			if result != tt.expected {
-				t.Errorf("formatSessionLine() = %q, want %q", result, tt.expected)
+			for _, want := range tt.wantContains {
+				if !strings.Contains(result, want) {
+					t.Errorf("formatSessionLine() = %q, should contain %q", result, want)
+				}
 			}
 		})
 	}
@@ -131,18 +184,18 @@ func TestExtractSessionName(t *testing.T) {
 		expected string
 	}{
 		{
-			name:     "Extract from GitHub session",
-			line:     "🟢 github: mateimicu/tmux-claude-fleet - 01 [Claude ✓] [test-session-1]",
+			name:     "Extract from GitHub session with Claude state",
+			line:     "🟢 github: mateimicu/tmux-claude-fleet - 01 🟢 [Claude: Active] [test-session-1]",
 			expected: "test-session-1",
 		},
 		{
 			name:     "Extract from local session",
-			line:     "⚫ local: myorg/myrepo - 05 [local-project]",
+			line:     "⚫ local: myorg/myrepo - 05 ⚫ [Claude: Stopped] [local-project]",
 			expected: "local-project",
 		},
 		{
-			name:     "Extract with Claude status",
-			line:     "🟢 github: user/repo - 001 [Claude ✓] [my-session]",
+			name:     "Extract with waiting state",
+			line:     "🟢 github: user/repo - 001 ⏸️ [Claude: Needs Input] [my-session]",
 			expected: "my-session",
 		},
 	}
