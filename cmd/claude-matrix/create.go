@@ -10,13 +10,13 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mateimicu/tmux-claude-fleet/internal/config"
-	"github.com/mateimicu/tmux-claude-fleet/internal/fzf"
-	"github.com/mateimicu/tmux-claude-fleet/internal/git"
-	"github.com/mateimicu/tmux-claude-fleet/internal/repos"
-	"github.com/mateimicu/tmux-claude-fleet/internal/session"
-	"github.com/mateimicu/tmux-claude-fleet/internal/tmux"
-	"github.com/mateimicu/tmux-claude-fleet/pkg/types"
+	"github.com/mateimicu/tmux-claude-matrix/internal/config"
+	"github.com/mateimicu/tmux-claude-matrix/internal/fzf"
+	"github.com/mateimicu/tmux-claude-matrix/internal/git"
+	"github.com/mateimicu/tmux-claude-matrix/internal/repos"
+	"github.com/mateimicu/tmux-claude-matrix/internal/session"
+	"github.com/mateimicu/tmux-claude-matrix/internal/tmux"
+	"github.com/mateimicu/tmux-claude-matrix/pkg/types"
 )
 
 func createCmd() *cobra.Command {

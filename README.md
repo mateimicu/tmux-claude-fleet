@@ -1,50 +1,50 @@
-# Tmux Claude Fleet
+# Tmux Claude Matrix
 
 A tmux session manager with Claude AI integration.
 
 ## Installation
 
 ```bash
-git clone https://github.com/mateimicu/tmux-claude-fleet.git
-cd tmux-claude-fleet
+git clone https://github.com/mateimicu/tmux-claude-matrix.git
+cd tmux-claude-matrix
 ./install.sh
 ```
 
 Or as a tmux plugin via TPM:
 
 ```tmux
-set -g @plugin 'mateimicu/tmux-claude-fleet'
+set -g @plugin 'mateimicu/tmux-claude-matrix'
 ```
 
 ## Usage
 
 ```bash
 # Create a session
-claude-fleet create
+claude-matrix create
 
 # List sessions
-claude-fleet list
+claude-matrix list
 
 # Delete a session
-claude-fleet delete [session-name]
+claude-matrix delete [session-name]
 
 # Refresh repository cache
-claude-fleet refresh
+claude-matrix refresh
 ```
 
 ## Configuration
 
-Create `~/.config/tmux-claude-fleet/config`:
+Create `~/.config/tmux-claude-matrix/config`:
 
 ```bash
 # Repository sources
 GITHUB_ENABLED=1
 LOCAL_CONFIG_ENABLED=1
-LOCAL_REPOS_FILE=~/.tmux-claude-fleet/repos.txt
+LOCAL_REPOS_FILE=~/.tmux-claude-matrix/repos.txt
 
 # Directories
-CLONE_DIR=~/.tmux-claude-fleet/repos
-SESSIONS_DIR=~/.tmux-claude-fleet/sessions
+CLONE_DIR=~/.tmux-claude-matrix/repos
+SESSIONS_DIR=~/.tmux-claude-matrix/sessions
 
 # Claude integration
 CLAUDE_BIN=/usr/local/bin/claude

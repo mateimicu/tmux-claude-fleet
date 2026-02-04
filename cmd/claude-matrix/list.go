@@ -7,11 +7,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mateimicu/tmux-claude-fleet/internal/config"
-	"github.com/mateimicu/tmux-claude-fleet/internal/fzf"
-	"github.com/mateimicu/tmux-claude-fleet/internal/session"
-	"github.com/mateimicu/tmux-claude-fleet/internal/tmux"
-	"github.com/mateimicu/tmux-claude-fleet/pkg/types"
+	"github.com/mateimicu/tmux-claude-matrix/internal/config"
+	"github.com/mateimicu/tmux-claude-matrix/internal/fzf"
+	"github.com/mateimicu/tmux-claude-matrix/internal/session"
+	"github.com/mateimicu/tmux-claude-matrix/internal/tmux"
+	"github.com/mateimicu/tmux-claude-matrix/pkg/types"
 )
 
 func listCmd() *cobra.Command {
@@ -44,7 +44,7 @@ func runList(_ context.Context) error {
 		}
 
 		if len(sessions) == 0 {
-			fmt.Println("No sessions found. Create one with: claude-fleet create")
+			fmt.Println("No sessions found. Create one with: claude-matrix create")
 			return nil
 		}
 

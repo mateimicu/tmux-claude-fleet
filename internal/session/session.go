@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/mateimicu/tmux-claude-fleet/pkg/types"
+	"github.com/mateimicu/tmux-claude-matrix/pkg/types"
 )
 
 // Manager manages session metadata

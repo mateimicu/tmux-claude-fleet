@@ -8,8 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mateimicu/tmux-claude-fleet/internal/config"
-	"github.com/mateimicu/tmux-claude-fleet/internal/repos"
+	"github.com/mateimicu/tmux-claude-matrix/internal/config"
+	"github.com/mateimicu/tmux-claude-matrix/internal/repos"
 )
 
 func diagnoseCmd() *cobra.Command {
@@ -24,7 +24,7 @@ func diagnoseCmd() *cobra.Command {
 }
 
 func runDiagnose(ctx context.Context) error {
-	fmt.Println("🔍 Diagnosing tmux-claude-fleet configuration...")
+	fmt.Println("🔍 Diagnosing tmux-claude-matrix configuration...")
 	fmt.Println()
 
 	// Load config
@@ -151,7 +151,7 @@ func runDiagnose(ctx context.Context) error {
 		fmt.Println("  ❌ No repository sources configured!")
 		fmt.Println()
 		fmt.Println("  To fix:")
-		fmt.Println("    1. Add local repos: echo 'https://github.com/user/repo' > ~/.tmux-claude-fleet/repos.txt")
+		fmt.Println("    1. Add local repos: echo 'https://github.com/user/repo' > ~/.tmux-claude-matrix/repos.txt")
 		fmt.Println("    2. Or set GITHUB_TOKEN: ./setup-github.sh")
 	} else {
 		discoverer := repos.NewDiscoverer(sources...)
@@ -164,7 +164,7 @@ func runDiagnose(ctx context.Context) error {
 	}
 
 	fmt.Println()
-	fmt.Println("For more help, see: https://github.com/mateimicu/tmux-claude-fleet")
+	fmt.Println("For more help, see: https://github.com/mateimicu/tmux-claude-matrix")
 
 	return nil
 }

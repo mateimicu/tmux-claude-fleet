@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mateimicu/tmux-claude-fleet/pkg/types"
+	"github.com/mateimicu/tmux-claude-matrix/pkg/types"
 )
 
 // Load reads config from multiple sources (env > files > defaults)
@@ -19,8 +19,8 @@ func Load() (*types.Config, error) {
 
 	// Try config file locations
 	paths := []string{
-		filepath.Join(os.Getenv("HOME"), ".config/tmux-claude-fleet/config"),
-		filepath.Join(os.Getenv("HOME"), ".tmux-claude-fleet/config"),
+		filepath.Join(os.Getenv("HOME"), ".config/tmux-claude-matrix/config"),
+		filepath.Join(os.Getenv("HOME"), ".tmux-claude-matrix/config"),
 	}
 
 	for _, path := range paths {
@@ -43,16 +43,16 @@ func Load() (*types.Config, error) {
 func defaults() *types.Config {
 	home := os.Getenv("HOME")
 	return &types.Config{
-		CloneDir:           filepath.Join(home, ".tmux-claude-fleet/repos"),
+		CloneDir:           filepath.Join(home, ".tmux-claude-matrix/repos"),
 		GitHubEnabled:      true,
 		GitHubOrgs:         []string{}, // Empty = all orgs
 		LocalConfigEnabled: true,
-		LocalReposFile:     filepath.Join(home, ".tmux-claude-fleet/repos.txt"),
+		LocalReposFile:     filepath.Join(home, ".tmux-claude-matrix/repos.txt"),
 		ClaudeBin:          findClaudeBin(),
 		ClaudeArgs:         []string{"--dangerously-skip-permissions"},
-		CacheDir:           filepath.Join(home, ".tmux-claude-fleet/.cache"),
+		CacheDir:           filepath.Join(home, ".tmux-claude-matrix/.cache"),
 		CacheTTL:           30 * time.Minute, // Increased from 5m to 30m for better performance
-		SessionsDir:        filepath.Join(home, ".tmux-claude-fleet/sessions"),
+		SessionsDir:        filepath.Join(home, ".tmux-claude-matrix/sessions"),
 	}
 }
 
@@ -152,13 +152,13 @@ func applyConfigValue(cfg *types.Config, key, value string) {
 }
 
 func applyEnvOverrides(cfg *types.Config) {
-	if val := os.Getenv("TMUX_CLAUDE_FLEET_CLONE_DIR"); val != "" {
+	if val := os.Getenv("TMUX_CLAUDE_MATRIX_CLONE_DIR"); val != "" {
 		cfg.CloneDir = val
 	}
-	if val := os.Getenv("TMUX_CLAUDE_FLEET_GITHUB_ENABLED"); val != "" {
+	if val := os.Getenv("TMUX_CLAUDE_MATRIX_GITHUB_ENABLED"); val != "" {
 		cfg.GitHubEnabled = val == "1" || val == "true"
 	}
-	if val := os.Getenv("TMUX_CLAUDE_FLEET_GITHUB_ORGS"); val != "" {
+	if val := os.Getenv("TMUX_CLAUDE_MATRIX_GITHUB_ORGS"); val != "" {
 		orgs := strings.Split(val, ",")
 		cfg.GitHubOrgs = make([]string, 0, len(orgs))
 		for _, org := range orgs {
@@ -168,29 +168,29 @@ func applyEnvOverrides(cfg *types.Config) {
 			}
 		}
 	}
-	if val := os.Getenv("TMUX_CLAUDE_FLEET_LOCAL_CONFIG_ENABLED"); val != "" {
+	if val := os.Getenv("TMUX_CLAUDE_MATRIX_LOCAL_CONFIG_ENABLED"); val != "" {
 		cfg.LocalConfigEnabled = val == "1" || val == "true"
 	}
-	if val := os.Getenv("TMUX_CLAUDE_FLEET_LOCAL_REPOS_FILE"); val != "" {
+	if val := os.Getenv("TMUX_CLAUDE_MATRIX_LOCAL_REPOS_FILE"); val != "" {
 		cfg.LocalReposFile = val
 	}
-	if val := os.Getenv("TMUX_CLAUDE_FLEET_CLAUDE_BIN"); val != "" {
+	if val := os.Getenv("TMUX_CLAUDE_MATRIX_CLAUDE_BIN"); val != "" {
 		cfg.ClaudeBin = val
 	}
-	if val := os.Getenv("TMUX_CLAUDE_FLEET_CLAUDE_ARGS"); val != "" {
+	if val := os.Getenv("TMUX_CLAUDE_MATRIX_CLAUDE_ARGS"); val != "" {
 		cfg.ClaudeArgs = strings.Fields(val)
 	}
-	if val := os.Getenv("TMUX_CLAUDE_FLEET_CACHE_DIR"); val != "" {
+	if val := os.Getenv("TMUX_CLAUDE_MATRIX_CACHE_DIR"); val != "" {
 		cfg.CacheDir = val
 	}
-	if val := os.Getenv("TMUX_CLAUDE_FLEET_CACHE_TTL"); val != "" {
+	if val := os.Getenv("TMUX_CLAUDE_MATRIX_CACHE_TTL"); val != "" {
 		if duration, err := time.ParseDuration(val); err == nil {
 			cfg.CacheTTL = duration
 		} else if minutes, err := strconv.Atoi(val); err == nil {
 			cfg.CacheTTL = time.Duration(minutes) * time.Minute
 		}
 	}
-	if val := os.Getenv("TMUX_CLAUDE_FLEET_SESSIONS_DIR"); val != "" {
+	if val := os.Getenv("TMUX_CLAUDE_MATRIX_SESSIONS_DIR"); val != "" {
 		cfg.SessionsDir = val
 	}
 }

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mateimicu/tmux-claude-fleet/pkg/types"
+	"github.com/mateimicu/tmux-claude-matrix/pkg/types"
 )
 
 // Manager handles tmux operations
