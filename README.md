@@ -12,26 +12,24 @@
 
 ## Installation
 
-### From Source
+### Method 1: Quick Install (Recommended)
 
 ```bash
 # Clone the repository
 git clone https://github.com/mateimicu/tmux-claude-fleet.git
 cd tmux-claude-fleet
 
-# Build the binary
-make build
-
-# The binary will be at ./bin/claude-fleet
+# Run the install script
+./install.sh
 ```
 
-### Using Go Install
+The installer will:
+- Check for Go
+- Build the binary
+- Create config directory
+- Set up example configuration
 
-```bash
-go install github.com/mateimicu/tmux-claude-fleet/cmd/claude-fleet@latest
-```
-
-### As Tmux Plugin
+### Method 2: As Tmux Plugin (TPM)
 
 Add to your `.tmux.conf`:
 
@@ -44,10 +42,54 @@ set -g @claude-fleet-list-key 'L'
 set -g @claude-fleet-delete-key 'D'
 ```
 
-Then reload tmux:
+Then install with TPM:
 
 ```bash
+# Press prefix + I (capital i) to install
+# Or run: ~/.tmux/plugins/tpm/bin/install_plugins
+```
+
+**Note**: The plugin will **auto-build** on first load if Go is installed. If the build fails:
+
+```bash
+cd ~/.tmux/plugins/tmux-claude-fleet
+make build
 tmux source ~/.tmux.conf
+```
+
+### Method 3: Download Pre-built Binary
+
+Download the latest release for your platform:
+
+```bash
+# macOS (Intel)
+curl -LO https://github.com/mateimicu/tmux-claude-fleet/releases/latest/download/claude-fleet-darwin-amd64
+chmod +x claude-fleet-darwin-amd64
+sudo mv claude-fleet-darwin-amd64 /usr/local/bin/claude-fleet
+
+# macOS (Apple Silicon)
+curl -LO https://github.com/mateimicu/tmux-claude-fleet/releases/latest/download/claude-fleet-darwin-arm64
+chmod +x claude-fleet-darwin-arm64
+sudo mv claude-fleet-darwin-arm64 /usr/local/bin/claude-fleet
+
+# Linux (x86_64)
+curl -LO https://github.com/mateimicu/tmux-claude-fleet/releases/latest/download/claude-fleet-linux-amd64
+chmod +x claude-fleet-linux-amd64
+sudo mv claude-fleet-linux-amd64 /usr/local/bin/claude-fleet
+```
+
+### Method 4: Using Go Install
+
+```bash
+go install github.com/mateimicu/tmux-claude-fleet/cmd/claude-fleet@latest
+```
+
+### Verify Installation
+
+```bash
+claude-fleet --help
+# Or if using plugin:
+~/.tmux/plugins/tmux-claude-fleet/bin/claude-fleet --help
 ```
 
 ## Usage

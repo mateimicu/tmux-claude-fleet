@@ -8,28 +8,116 @@ on:
 
 jobs:
   test:
-    name: Run Tests
+    name: Test
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        go-version: ['1.21', '1.22', '1.23']
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-${{ matrix.go-version }}-
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Run tests
+        run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Upload coverage to Codecov
+        if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.23'
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.out
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Build binary
+        run: make build
+
+      - name: Test binary
+        run: ./bin/claude-fleet --help
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: claude-fleet-linux-amd64
+          path: bin/claude-fleet
+          retention-days: 7
+
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y tmux git
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
 
-          # Install fzf
-          git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
-          ~/.fzf/install --bin
-          sudo ln -sf ~/.fzf/bin/fzf /usr/local/bin/fzf
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout=5m
 
-          # Install bats
-          sudo npm install -g bats
+  cross-compile:
+    name: Cross-Compile
+    runs-on: ubuntu-latest
+    needs: test
 
-      - name: Verify dependencies
-        run: make check-deps
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Run tests
-        run: make test
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Cross-compile for all platforms
+        run: make cross-compile
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: claude-fleet-binaries
+          path: bin/claude-fleet-*
+          retention-days: 7

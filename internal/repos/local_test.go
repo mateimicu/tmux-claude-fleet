@@ -55,33 +55,33 @@ https://github.com/test/repo4
 
 func TestParseLine(t *testing.T) {
 	tests := []struct {
-		name        string
-		line        string
-		expectedURL string
+		name         string
+		line         string
+		expectedURL  string
 		expectedDesc string
 	}{
 		{
-			name:        "HTTPS URL only",
-			line:        "https://github.com/test/repo",
-			expectedURL: "https://github.com/test/repo",
+			name:         "HTTPS URL only",
+			line:         "https://github.com/test/repo",
+			expectedURL:  "https://github.com/test/repo",
 			expectedDesc: "",
 		},
 		{
-			name:        "HTTPS URL with description",
-			line:        "https://github.com/test/repo:My awesome repo",
-			expectedURL: "https://github.com/test/repo",
+			name:         "HTTPS URL with description",
+			line:         "https://github.com/test/repo:My awesome repo",
+			expectedURL:  "https://github.com/test/repo",
 			expectedDesc: "My awesome repo",
 		},
 		{
-			name:        "SSH URL only",
-			line:        "git@github.com:test/repo.git",
-			expectedURL: "git@github.com:test/repo.git",
+			name:         "SSH URL only",
+			line:         "git@github.com:test/repo.git",
+			expectedURL:  "git@github.com:test/repo.git",
 			expectedDesc: "",
 		},
 		{
-			name:        "SSH URL with description",
-			line:        "git@github.com:test/repo:Private repo",
-			expectedURL: "git@github.com:test/repo",
+			name:         "SSH URL with description",
+			line:         "git@github.com:test/repo:Private repo",
+			expectedURL:  "git@github.com:test/repo",
 			expectedDesc: "Private repo",
 		},
 	}

@@ -39,8 +39,8 @@ type ghRepo struct {
 }
 
 type cacheData struct {
-	Timestamp time.Time            `json:"timestamp"`
-	Repos     []*types.Repository  `json:"repos"`
+	Timestamp time.Time           `json:"timestamp"`
+	Repos     []*types.Repository `json:"repos"`
 }
 
 func (g *GitHubSource) List(ctx context.Context) ([]*types.Repository, error) {

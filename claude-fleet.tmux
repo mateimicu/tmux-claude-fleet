@@ -17,10 +17,33 @@ get_tmux_option() {
     fi
 }
 
-# Check if binary exists
+# Auto-build binary if it doesn't exist
 if [ ! -x "$BINARY" ]; then
-    tmux display-message "claude-fleet: Binary not found. Run: make install"
-    exit 1
+    # Check if Go is installed
+    if ! command -v go >/dev/null 2>&1; then
+        tmux display-message "claude-fleet: Go not found. Install Go or download binary from releases."
+        exit 1
+    fi
+
+    # Check if we have the source code
+    if [ ! -f "$CURRENT_DIR/go.mod" ]; then
+        tmux display-message "claude-fleet: Source code not found. Clone the full repository."
+        exit 1
+    fi
+
+    tmux display-message "claude-fleet: Building binary (first time only)..."
+
+    # Build the binary in the background
+    (
+        cd "$CURRENT_DIR" && make build >/dev/null 2>&1
+        if [ $? -eq 0 ]; then
+            tmux display-message "claude-fleet: Build successful! Reload tmux config to activate."
+        else
+            tmux display-message "claude-fleet: Build failed. Run 'make build' manually to see errors."
+        fi
+    ) &
+
+    exit 0
 fi
 
 # Get keybindings
