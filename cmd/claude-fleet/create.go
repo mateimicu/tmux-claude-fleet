@@ -44,11 +44,22 @@ func runCreate(ctx context.Context) error {
 	}
 
 	if cfg.GitHubEnabled {
-		token := os.Getenv("GITHUB_TOKEN")
+		token, source := repos.GetGitHubToken()
 		if token == "" {
-			fmt.Println("⚠️  GITHUB_TOKEN not set, skipping GitHub repositories")
+			fmt.Println("⚠️  GitHub authentication not found, skipping GitHub repositories")
+			fmt.Println("   To enable GitHub integration:")
+			fmt.Println("   Option 1: Use gh CLI (recommended)")
+			fmt.Println("     - Install: brew install gh")
+			fmt.Println("     - Login: gh auth login")
+			fmt.Println("   Option 2: Set token manually")
+			fmt.Println("     - export GITHUB_TOKEN=\"ghp_your_token_here\"")
+			fmt.Println("     - Get token at: https://github.com/settings/tokens")
 		} else {
-			sources = append(sources, repos.NewGitHubSource(token, cfg.CacheDir, cfg.CacheTTL))
+			fmt.Printf("✓ GitHub integration enabled (using %s)\n", source)
+			if len(cfg.GitHubOrgs) > 0 {
+				fmt.Printf("  Filtering by organizations: %s\n", strings.Join(cfg.GitHubOrgs, ", "))
+			}
+			sources = append(sources, repos.NewGitHubSource(token, cfg.CacheDir, cfg.CacheTTL, cfg.GitHubOrgs))
 		}
 	}
 

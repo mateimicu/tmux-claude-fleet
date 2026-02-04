@@ -26,6 +26,7 @@ It helps you quickly create development environments for your repositories.`,
 		createCmd(),
 		listCmd(),
 		deleteCmd(),
+		diagnoseCmd(),
 	)
 
 	if err := rootCmd.ExecuteContext(ctx); err != nil {

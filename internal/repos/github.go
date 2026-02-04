@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/mateimicu/tmux-claude-fleet/pkg/types"
@@ -17,14 +18,16 @@ type GitHubSource struct {
 	cacheDir string
 	cacheTTL time.Duration
 	client   *http.Client
+	orgs     []string // Filter by these organizations (empty = all)
 }
 
-func NewGitHubSource(token, cacheDir string, cacheTTL time.Duration) *GitHubSource {
+func NewGitHubSource(token, cacheDir string, cacheTTL time.Duration, orgs []string) *GitHubSource {
 	return &GitHubSource{
 		token:    token,
 		cacheDir: cacheDir,
 		cacheTTL: cacheTTL,
 		client:   &http.Client{Timeout: 30 * time.Second},
+		orgs:     orgs,
 	}
 }
 
@@ -98,12 +101,37 @@ func (g *GitHubSource) fetchFromAPI(ctx context.Context) ([]*types.Repository, e
 		}
 
 		for _, gr := range ghRepos {
-			allRepos = append(allRepos, &types.Repository{
-				Source:      "github",
-				URL:         gr.CloneURL,
-				Name:        gr.FullName,
-				Description: gr.Description,
-			})
+			// Filter by organization if specified
+			if len(g.orgs) > 0 {
+				repo := &types.Repository{
+					Source:      "github",
+					URL:         gr.CloneURL,
+					Name:        gr.FullName,
+					Description: gr.Description,
+				}
+
+				// Extract org from full name (org/repo)
+				parts := strings.Split(gr.FullName, "/")
+				if len(parts) >= 2 {
+					repoOrg := parts[0]
+
+					// Check if this org is in the filter list
+					for _, allowedOrg := range g.orgs {
+						if repoOrg == allowedOrg {
+							allRepos = append(allRepos, repo)
+							break
+						}
+					}
+				}
+			} else {
+				// No filter, include all repos
+				allRepos = append(allRepos, &types.Repository{
+					Source:      "github",
+					URL:         gr.CloneURL,
+					Name:        gr.FullName,
+					Description: gr.Description,
+				})
+			}
 		}
 
 		// Check if there are more pages

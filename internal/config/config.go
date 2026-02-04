@@ -45,6 +45,7 @@ func defaults() *types.Config {
 	return &types.Config{
 		CloneDir:           filepath.Join(home, ".tmux-claude-fleet/repos"),
 		GitHubEnabled:      true,
+		GitHubOrgs:         []string{}, // Empty = all orgs
 		LocalConfigEnabled: true,
 		LocalReposFile:     filepath.Join(home, ".tmux-claude-fleet/repos.txt"),
 		ClaudeBin:          findClaudeBin(),
@@ -113,6 +114,18 @@ func applyConfigValue(cfg *types.Config, key, value string) {
 		cfg.CloneDir = value
 	case "GITHUB_ENABLED":
 		cfg.GitHubEnabled = value == "1" || value == "true"
+	case "GITHUB_ORGS":
+		// Parse comma-separated list of organizations
+		if value != "" {
+			orgs := strings.Split(value, ",")
+			cfg.GitHubOrgs = make([]string, 0, len(orgs))
+			for _, org := range orgs {
+				trimmed := strings.TrimSpace(org)
+				if trimmed != "" {
+					cfg.GitHubOrgs = append(cfg.GitHubOrgs, trimmed)
+				}
+			}
+		}
 	case "LOCAL_CONFIG_ENABLED":
 		cfg.LocalConfigEnabled = value == "1" || value == "true"
 	case "LOCAL_REPOS_FILE":
@@ -140,6 +153,16 @@ func applyEnvOverrides(cfg *types.Config) {
 	}
 	if val := os.Getenv("TMUX_CLAUDE_FLEET_GITHUB_ENABLED"); val != "" {
 		cfg.GitHubEnabled = val == "1" || val == "true"
+	}
+	if val := os.Getenv("TMUX_CLAUDE_FLEET_GITHUB_ORGS"); val != "" {
+		orgs := strings.Split(val, ",")
+		cfg.GitHubOrgs = make([]string, 0, len(orgs))
+		for _, org := range orgs {
+			trimmed := strings.TrimSpace(org)
+			if trimmed != "" {
+				cfg.GitHubOrgs = append(cfg.GitHubOrgs, trimmed)
+			}
+		}
 	}
 	if val := os.Getenv("TMUX_CLAUDE_FLEET_LOCAL_CONFIG_ENABLED"); val != "" {
 		cfg.LocalConfigEnabled = val == "1" || val == "true"

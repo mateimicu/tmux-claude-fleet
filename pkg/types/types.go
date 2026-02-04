@@ -29,6 +29,7 @@ type SessionStatus struct {
 type Config struct {
 	CloneDir           string
 	GitHubEnabled      bool
+	GitHubOrgs         []string // Filter repos by organization
 	LocalConfigEnabled bool
 	LocalReposFile     string
 	ClaudeBin          string
