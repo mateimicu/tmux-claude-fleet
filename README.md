@@ -137,6 +137,19 @@ claude-fleet delete [session-name]
 claude-fleet delete --keep-clone session-name
 ```
 
+### Refresh Repository Cache
+
+```bash
+# Manually refresh the GitHub repository cache
+claude-fleet refresh
+```
+
+This command:
+- Forces a fresh fetch from GitHub API
+- Updates the cached repository list
+- Shows cache status and location
+- Useful when you've added new repositories
+
 ## Configuration
 
 Configuration is loaded from:
@@ -163,7 +176,23 @@ CLAUDE_BIN=/usr/local/bin/claude
 CLAUDE_ARGS=--dangerously-skip-permissions
 
 # Cache settings
-CACHE_TTL=5m  # 5 minutes
+CACHE_TTL=30m  # 30 minutes (default, was 5m in earlier versions)
+```
+
+### Cache Behavior
+
+The GitHub repository list is cached to improve performance:
+
+- **Default TTL**: 30 minutes (configurable via `CACHE_TTL`)
+- **Cache Location**: `~/.tmux-claude-fleet/.cache/github-repos.json`
+- **Cache Feedback**: The CLI shows when using cached vs fresh data:
+  - `✓ Using cached GitHub repos (age: 5.2m)` - Using cache
+  - `⟳ Fetching GitHub repos from API...` - Fresh fetch
+- **Manual Refresh**: Use `claude-fleet refresh` to force update
+
+Supported cache TTL formats:
+- Duration string: `30m`, `1h`, `90s`
+- Integer minutes: `30` (interpreted as 30 minutes)
 ```
 
 ### Environment Variables
