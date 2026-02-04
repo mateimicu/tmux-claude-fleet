@@ -31,52 +31,107 @@ func runList(_ context.Context) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	// Load sessions
 	sessionMgr := session.NewManager(cfg.SessionsDir)
-	sessions, err := sessionMgr.List()
-	if err != nil {
-		return fmt.Errorf("failed to list sessions: %w", err)
-	}
+	tmuxMgr := tmux.New()
 
-	if len(sessions) == 0 {
-		fmt.Println("No sessions found. Create one with: claude-fleet create")
+	// Main loop - continue showing list until user exits or switches
+	for {
+		// Load sessions
+		sessions, err := sessionMgr.List()
+		if err != nil {
+			return fmt.Errorf("failed to list sessions: %w", err)
+		}
+
+		if len(sessions) == 0 {
+			fmt.Println("No sessions found. Create one with: claude-fleet create")
+			return nil
+		}
+
+		// Get tmux status
+		activeSessions, err := tmuxMgr.ListSessions()
+		if err != nil {
+			return fmt.Errorf("failed to list tmux sessions: %w", err)
+		}
+		activeMap := make(map[string]bool)
+		for _, name := range activeSessions {
+			activeMap[name] = true
+		}
+
+		// Build session status list
+		var statusList []*types.SessionStatus
+		for _, sess := range sessions {
+			status := &types.SessionStatus{
+				Session:       sess,
+				TmuxActive:    activeMap[sess.Name],
+				ClaudeRunning: false,
+			}
+
+			// Check Claude status if session is active
+			if status.TmuxActive {
+				status.ClaudeRunning = tmuxMgr.GetClaudeStatus(sess.Name)
+			}
+
+			statusList = append(statusList, status)
+		}
+
+		// Show FZF selection with action support
+		selection, err := fzf.SelectSessionWithAction(statusList)
+		if err != nil {
+			return fmt.Errorf("session selection cancelled: %w", err)
+		}
+
+		// Handle action
+		switch selection.Action {
+		case fzf.SessionActionDelete:
+			if err := handleDeleteAction(sessionMgr, tmuxMgr, selection.Session); err != nil {
+				fmt.Printf("⚠️  Failed to delete session: %v\n", err)
+			}
+			// Continue loop to show updated list
+
+		case fzf.SessionActionSwitch:
+			if err := handleSwitchAction(cfg, tmuxMgr, selection.Session); err != nil {
+				return err
+			}
+			// Exit after switching
+			return nil
+
+		default:
+			return fmt.Errorf("session selection cancelled")
+		}
+	}
+}
+
+func handleDeleteAction(sessionMgr *session.Manager, tmuxMgr *tmux.Manager, selected *types.SessionStatus) error {
+	sess := selected.Session
+
+	// Ask for confirmation
+	fmt.Printf("\n🗑️  Delete session '%s'? (y/N): ", sess.Name)
+	var confirmation string
+	fmt.Scanln(&confirmation)
+
+	if confirmation != "y" && confirmation != "Y" {
+		fmt.Println("Deletion cancelled.")
 		return nil
 	}
 
-	// Get tmux status
-	tmuxMgr := tmux.New()
-	activeSessions, err := tmuxMgr.ListSessions()
-	if err != nil {
-		return fmt.Errorf("failed to list tmux sessions: %w", err)
-	}
-	activeMap := make(map[string]bool)
-	for _, name := range activeSessions {
-		activeMap[name] = true
-	}
-
-	// Build session status list
-	var statusList []*types.SessionStatus
-	for _, sess := range sessions {
-		status := &types.SessionStatus{
-			Session:       sess,
-			TmuxActive:    activeMap[sess.Name],
-			ClaudeRunning: false,
+	// Kill tmux session if active
+	if tmuxMgr.SessionExists(sess.Name) {
+		fmt.Printf("🛑 Killing tmux session '%s'...\n", sess.Name)
+		if err := tmuxMgr.KillSession(sess.Name); err != nil {
+			fmt.Printf("⚠️  Failed to kill tmux session: %v\n", err)
 		}
-
-		// Check Claude status if session is active
-		if status.TmuxActive {
-			status.ClaudeRunning = tmuxMgr.GetClaudeStatus(sess.Name)
-		}
-
-		statusList = append(statusList, status)
 	}
 
-	// Show FZF selection
-	selected, err := fzf.SelectSession(statusList)
-	if err != nil {
-		return fmt.Errorf("session selection cancelled: %w", err)
+	// Delete metadata
+	if err := sessionMgr.Delete(sess.Name); err != nil {
+		return fmt.Errorf("failed to delete session metadata: %w", err)
 	}
 
+	fmt.Printf("✓ Session '%s' deleted successfully!\n\n", sess.Name)
+	return nil
+}
+
+func handleSwitchAction(cfg *types.Config, tmuxMgr *tmux.Manager, selected *types.SessionStatus) error {
 	// Switch to session
 	fmt.Printf("🚀 Switching to session '%s'...\n", selected.Session.Name)
 
