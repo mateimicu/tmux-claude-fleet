@@ -27,13 +27,13 @@ type SessionStatus struct {
 
 // Config represents plugin configuration
 type Config struct {
-	GitHubOrgs         []string // Filter repos by organization
-	ClaudeArgs         []string
 	CloneDir           string
 	LocalReposFile     string
 	ClaudeBin          string
 	CacheDir           string
 	SessionsDir        string
+	GitHubOrgs         []string
+	ClaudeArgs         []string
 	CacheTTL           time.Duration
 	GitHubEnabled      bool
 	LocalConfigEnabled bool

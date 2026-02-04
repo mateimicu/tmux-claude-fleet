@@ -14,11 +14,11 @@ import (
 
 // GitHubSource discovers repositories from GitHub
 type GitHubSource struct {
-	orgs     []string // Filter by these organizations (empty = all)
+	client   *http.Client
 	token    string
 	cacheDir string
+	orgs     []string
 	cacheTTL time.Duration
-	client   *http.Client
 }
 
 // NewGitHubSource creates a new GitHub repository source
