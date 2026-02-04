@@ -21,6 +21,16 @@ func (m *Manager) CreateSession(name, path string) error {
 	return cmd.Run()
 }
 
+// CreateSessionWithCommand creates a new tmux session and runs a command in the first window
+func (m *Manager) CreateSessionWithCommand(name, path, command string) error {
+	args := []string{"new-session", "-d", "-s", name, "-c", path}
+	if command != "" {
+		args = append(args, command)
+	}
+	cmd := exec.Command("tmux", args...)
+	return cmd.Run()
+}
+
 // CreateWindow creates a window in a session
 func (m *Manager) CreateWindow(session, name, command, path string) error {
 	args := []string{"new-window", "-t", session + ":", "-n", name}
@@ -64,8 +74,8 @@ func (m *Manager) SwitchToSession(name string) error {
 
 // GetClaudeStatus checks if Claude is running in session
 func (m *Manager) GetClaudeStatus(session string) bool {
-	// Get pane PIDs
-	cmd := exec.Command("tmux", "list-panes", "-t", session+":claude",
+	// Get pane PIDs from all windows in the session
+	cmd := exec.Command("tmux", "list-panes", "-t", session,
 		"-F", "#{pane_pid}")
 	output, err := cmd.Output()
 	if err != nil {
