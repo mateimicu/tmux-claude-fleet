@@ -17,6 +17,7 @@ type Discoverer struct {
 	sources []Source
 }
 
+// NewDiscoverer creates a new repository discoverer
 func NewDiscoverer(sources ...Source) *Discoverer {
 	return &Discoverer{sources: sources}
 }

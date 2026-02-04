@@ -82,7 +82,11 @@ func loadFromFile(cfg *types.Config, path string) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		if cerr := file.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {

@@ -35,7 +35,7 @@ func deleteCmd() *cobra.Command {
 	return cmd
 }
 
-func runDelete(ctx context.Context, sessionName string, keepClone bool) error {
+func runDelete(_ context.Context, sessionName string, keepClone bool) error {
 	// Load config
 	cfg, err := config.Load()
 	if err != nil {
@@ -58,7 +58,10 @@ func runDelete(ctx context.Context, sessionName string, keepClone bool) error {
 
 		// Get tmux status
 		tmuxMgr := tmux.New()
-		activeSessions, _ := tmuxMgr.ListSessions()
+		activeSessions, err := tmuxMgr.ListSessions()
+		if err != nil {
+			return fmt.Errorf("failed to list tmux sessions: %w", err)
+		}
 		activeMap := make(map[string]bool)
 		for _, name := range activeSessions {
 			activeMap[name] = true
@@ -98,7 +101,10 @@ func runDelete(ctx context.Context, sessionName string, keepClone bool) error {
 	fmt.Print("\nType 'yes' to confirm: ")
 
 	var confirmation string
-	fmt.Scanln(&confirmation)
+	if _, err := fmt.Scanln(&confirmation); err != nil {
+		fmt.Println("Deletion cancelled.")
+		return nil
+	}
 
 	if confirmation != "yes" {
 		fmt.Println("Deletion cancelled.")

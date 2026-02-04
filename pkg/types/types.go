@@ -15,7 +15,7 @@ type Session struct {
 	Name      string    `json:"name"`
 	RepoURL   string    `json:"repo_url"`
 	ClonePath string    `json:"clone_path"`
-	CreatedAt time.Time `json:"created_at"`
+	CreatedAt time.Time `json:"created_at"` // nolint:govet // Not reordering for backwards compatibility
 }
 
 // SessionStatus represents runtime session information
@@ -28,13 +28,13 @@ type SessionStatus struct {
 // Config represents plugin configuration
 type Config struct {
 	CloneDir           string
-	GitHubEnabled      bool
 	GitHubOrgs         []string // Filter repos by organization
-	LocalConfigEnabled bool
 	LocalReposFile     string
 	ClaudeBin          string
 	ClaudeArgs         []string
 	CacheDir           string
 	CacheTTL           time.Duration
 	SessionsDir        string
+	GitHubEnabled      bool
+	LocalConfigEnabled bool
 }

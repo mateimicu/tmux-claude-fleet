@@ -30,6 +30,7 @@ It helps you quickly create development environments for your repositories.`,
 	)
 
 	if err := rootCmd.ExecuteContext(ctx); err != nil {
+		cancel()
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

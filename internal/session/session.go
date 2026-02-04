@@ -11,10 +11,12 @@ import (
 	"github.com/mateimicu/tmux-claude-fleet/pkg/types"
 )
 
+// Manager manages session metadata
 type Manager struct {
 	metadataDir string
 }
 
+// NewManager creates a new session manager
 func NewManager(metadataDir string) *Manager {
 	return &Manager{metadataDir: metadataDir}
 }

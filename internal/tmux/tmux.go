@@ -7,8 +7,10 @@ import (
 	"strings"
 )
 
+// Manager handles tmux operations
 type Manager struct{}
 
+// New creates a new tmux Manager
 func New() *Manager {
 	return &Manager{}
 }

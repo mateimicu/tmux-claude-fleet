@@ -7,8 +7,10 @@ import (
 	"strings"
 )
 
+// Manager handles git operations
 type Manager struct{}
 
+// New creates a new git Manager
 func New() *Manager {
 	return &Manager{}
 }

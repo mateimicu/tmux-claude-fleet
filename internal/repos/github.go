@@ -12,6 +12,7 @@ import (
 	"github.com/mateimicu/tmux-claude-fleet/pkg/types"
 )
 
+// GitHubSource discovers repositories from GitHub
 type GitHubSource struct {
 	token    string
 	cacheDir string
@@ -20,6 +21,7 @@ type GitHubSource struct {
 	orgs     []string // Filter by these organizations (empty = all)
 }
 
+// NewGitHubSource creates a new GitHub repository source
 func NewGitHubSource(token, cacheDir string, cacheTTL time.Duration, orgs []string) *GitHubSource {
 	return &GitHubSource{
 		token:    token,
@@ -30,6 +32,7 @@ func NewGitHubSource(token, cacheDir string, cacheTTL time.Duration, orgs []stri
 	}
 }
 
+// Name returns the source name
 func (g *GitHubSource) Name() string {
 	return "github"
 }
@@ -45,6 +48,7 @@ type cacheData struct {
 	Repos     []*types.Repository `json:"repos"`
 }
 
+// List returns all repositories from GitHub
 func (g *GitHubSource) List(ctx context.Context) ([]*types.Repository, error) {
 	// Check cache
 	if repos, ok := g.checkCache(); ok {
@@ -86,7 +90,11 @@ func (g *GitHubSource) fetchFromAPI(ctx context.Context) ([]*types.Repository, e
 		if err != nil {
 			return nil, err
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if cerr := resp.Body.Close(); cerr != nil && err == nil {
+				err = cerr
+			}
+		}()
 
 		if resp.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
@@ -159,5 +167,5 @@ func (g *GitHubSource) saveCache(repos []*types.Repository) {
 	}
 
 	cachePath := filepath.Join(g.cacheDir, "github-repos.json")
-	os.WriteFile(cachePath, data, 0644)
+	_ = os.WriteFile(cachePath, data, 0644)
 }

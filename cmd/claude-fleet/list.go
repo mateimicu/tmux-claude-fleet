@@ -24,7 +24,7 @@ func listCmd() *cobra.Command {
 	}
 }
 
-func runList(ctx context.Context) error {
+func runList(_ context.Context) error {
 	// Load config
 	cfg, err := config.Load()
 	if err != nil {
@@ -45,7 +45,10 @@ func runList(ctx context.Context) error {
 
 	// Get tmux status
 	tmuxMgr := tmux.New()
-	activeSessions, _ := tmuxMgr.ListSessions()
+	activeSessions, err := tmuxMgr.ListSessions()
+	if err != nil {
+		return fmt.Errorf("failed to list tmux sessions: %w", err)
+	}
 	activeMap := make(map[string]bool)
 	for _, name := range activeSessions {
 		activeMap[name] = true
@@ -85,11 +88,15 @@ func runList(ctx context.Context) error {
 		}
 
 		// Create windows
-		tmuxMgr.CreateWindow(selected.Session.Name, "terminal", "", selected.Session.ClonePath)
+		if err := tmuxMgr.CreateWindow(selected.Session.Name, "terminal", "", selected.Session.ClonePath); err != nil {
+			fmt.Printf("⚠️  Failed to create terminal window: %v\n", err)
+		}
 
 		if cfg.ClaudeBin != "" {
 			claudeCmd := cfg.ClaudeBin + " " + strings.Join(cfg.ClaudeArgs, " ")
-			tmuxMgr.CreateWindow(selected.Session.Name, "claude", claudeCmd, selected.Session.ClonePath)
+			if err := tmuxMgr.CreateWindow(selected.Session.Name, "claude", claudeCmd, selected.Session.ClonePath); err != nil {
+				fmt.Printf("⚠️  Failed to create Claude window: %v\n", err)
+			}
 		}
 	}
 

@@ -10,24 +10,32 @@ import (
 	"github.com/mateimicu/tmux-claude-fleet/pkg/types"
 )
 
+// LocalSource discovers repositories from a local file
 type LocalSource struct {
 	filePath string
 }
 
+// NewLocalSource creates a new local repository source
 func NewLocalSource(filePath string) *LocalSource {
 	return &LocalSource{filePath: filePath}
 }
 
+// Name returns the source name
 func (l *LocalSource) Name() string {
 	return "local"
 }
 
+// List returns all repositories from the local file
 func (l *LocalSource) List(ctx context.Context) ([]*types.Repository, error) {
 	file, err := os.Open(l.filePath)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() {
+		if cerr := file.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
 
 	var repos []*types.Repository
 	scanner := bufio.NewScanner(file)
@@ -57,7 +65,8 @@ func parseLine(line string) (url, description string) {
 	// Format: URL or URL:description
 
 	// Check if it's an SSH URL (git@...)
-	if strings.Contains(line, "@") && !strings.HasPrefix(line, "http") {
+	switch {
+	case strings.Contains(line, "@") && !strings.HasPrefix(line, "http"):
 		// SSH format: git@github.com:org/repo or git@github.com:org/repo:description
 		// Find the second colon (after the SSH part)
 		parts := strings.SplitN(line, ":", 3)
@@ -70,7 +79,7 @@ func parseLine(line string) (url, description string) {
 			url = line
 			description = ""
 		}
-	} else if strings.HasPrefix(line, "http://") || strings.HasPrefix(line, "https://") {
+	case strings.HasPrefix(line, "http://") || strings.HasPrefix(line, "https://"):
 		// HTTPS format: https://github.com/org/repo or https://github.com/org/repo:description
 		// Split only after the protocol part
 		protocolEnd := strings.Index(line, "://")
@@ -90,7 +99,7 @@ func parseLine(line string) (url, description string) {
 			url = line
 			description = ""
 		}
-	} else {
+	default:
 		// Plain path or other format
 		url = line
 		description = ""
