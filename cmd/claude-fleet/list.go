@@ -107,7 +107,10 @@ func handleDeleteAction(sessionMgr *session.Manager, tmuxMgr *tmux.Manager, sele
 	// Ask for confirmation
 	fmt.Printf("\n🗑️  Delete session '%s'? (y/N): ", sess.Name)
 	var confirmation string
-	fmt.Scanln(&confirmation)
+	if _, err := fmt.Scanln(&confirmation); err != nil {
+		// Treat read errors as cancellation
+		confirmation = "n"
+	}
 
 	if confirmation != "y" && confirmation != "Y" {
 		fmt.Println("Deletion cancelled.")

@@ -52,8 +52,11 @@ func SelectRepository(repos []*types.Repository) (*types.Repository, error) {
 type SessionAction string
 
 const (
+	// SessionActionSwitch indicates switching to a session
 	SessionActionSwitch SessionAction = "switch"
+	// SessionActionDelete indicates deleting a session
 	SessionActionDelete SessionAction = "delete"
+	// SessionActionCancel indicates cancelling the selection
 	SessionActionCancel SessionAction = "cancel"
 )
 
