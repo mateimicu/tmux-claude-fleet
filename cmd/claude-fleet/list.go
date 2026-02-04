@@ -141,20 +141,14 @@ func handleSwitchAction(cfg *types.Config, tmuxMgr *tmux.Manager, selected *type
 	// If session is not active, recreate it
 	if !selected.TmuxActive {
 		fmt.Println("⚠️  Session not active, recreating...")
-		if err := tmuxMgr.CreateSession(selected.Session.Name, selected.Session.ClonePath); err != nil {
-			return fmt.Errorf("failed to recreate session: %w", err)
-		}
 
-		// Create windows
-		if err := tmuxMgr.CreateWindow(selected.Session.Name, "terminal", "", selected.Session.ClonePath); err != nil {
-			fmt.Printf("⚠️  Failed to create terminal window: %v\n", err)
-		}
-
+		var claudeCmd string
 		if cfg.ClaudeBin != "" {
-			claudeCmd := cfg.ClaudeBin + " " + strings.Join(cfg.ClaudeArgs, " ")
-			if err := tmuxMgr.CreateWindow(selected.Session.Name, "claude", claudeCmd, selected.Session.ClonePath); err != nil {
-				fmt.Printf("⚠️  Failed to create Claude window: %v\n", err)
-			}
+			claudeCmd = cfg.ClaudeBin + " " + strings.Join(cfg.ClaudeArgs, " ")
+		}
+
+		if err := tmuxMgr.CreateSession(selected.Session.Name, selected.Session.ClonePath, claudeCmd); err != nil {
+			return fmt.Errorf("failed to recreate session: %w", err)
 		}
 	}
 
