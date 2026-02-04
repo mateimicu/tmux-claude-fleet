@@ -297,11 +297,12 @@ func parseRepoURL(url string) (source, orgRepo string) {
 		// Extract the last two path components as org/repo
 		url = strings.TrimSuffix(url, "/")
 		parts := strings.Split(url, "/")
-		if len(parts) >= 2 {
+		switch {
+		case len(parts) >= 2:
 			orgRepo = parts[len(parts)-2] + "/" + parts[len(parts)-1]
-		} else if len(parts) == 1 {
+		case len(parts) == 1:
 			orgRepo = parts[0]
-		} else {
+		default:
 			orgRepo = url
 		}
 	}
