@@ -17,6 +17,23 @@ get_tmux_option() {
     fi
 }
 
+# Get keybindings
+create_key=$(get_tmux_option "@claude-matrix-create-key" "a")
+list_key=$(get_tmux_option "@claude-matrix-list-key" "A")
+delete_key=$(get_tmux_option "@claude-matrix-delete-key" "D")
+use_popup=$(get_tmux_option "@claude-matrix-use-popup" "true")
+
+# Bind keys using popup or new-window
+if [ "$use_popup" = "true" ]; then
+    tmux bind-key "$create_key" display-popup -w 80% -h 80% -E "$BINARY create"
+    tmux bind-key "$list_key" display-popup -w 80% -h 80% -E "$BINARY list"
+    tmux bind-key "$delete_key" display-popup -w 80% -h 80% -E "$BINARY delete"
+else
+    tmux bind-key "$create_key" new-window "$BINARY create"
+    tmux bind-key "$list_key" new-window "$BINARY list"
+    tmux bind-key "$delete_key" new-window "$BINARY delete"
+fi
+
 # Check if binary needs to be built or rebuilt
 needs_build=false
 if [ ! -x "$BINARY" ]; then
@@ -46,30 +63,11 @@ if [ "$needs_build" = true ]; then
     (
         cd "$CURRENT_DIR" && make build >/dev/null 2>&1
         if [ $? -eq 0 ]; then
-            tmux display-message "claude-matrix: Build successful! Reload tmux config to activate."
+            tmux display-message "claude-matrix: Build successful!"
         else
             tmux display-message "claude-matrix: Build failed. Run 'make build' manually to see errors."
         fi
     ) &
-
-    exit 0
-fi
-
-# Get keybindings
-create_key=$(get_tmux_option "@claude-matrix-create-key" "a")
-list_key=$(get_tmux_option "@claude-matrix-list-key" "A")
-delete_key=$(get_tmux_option "@claude-matrix-delete-key" "D")
-use_popup=$(get_tmux_option "@claude-matrix-use-popup" "true")
-
-# Bind keys using popup or new-window
-if [ "$use_popup" = "true" ]; then
-    tmux bind-key "$create_key" display-popup -w 80% -h 80% -E "$BINARY create"
-    tmux bind-key "$list_key" display-popup -w 80% -h 80% -E "$BINARY list"
-    tmux bind-key "$delete_key" display-popup -w 80% -h 80% -E "$BINARY delete"
 else
-    tmux bind-key "$create_key" new-window "$BINARY create"
-    tmux bind-key "$list_key" new-window "$BINARY list"
-    tmux bind-key "$delete_key" new-window "$BINARY delete"
+    tmux display-message "claude-matrix: Plugin loaded (Go version)"
 fi
-
-tmux display-message "claude-matrix: Plugin loaded (Go version)"
