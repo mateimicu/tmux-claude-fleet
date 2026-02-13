@@ -41,6 +41,10 @@ func TestGetGitHubToken_ContextPassthrough(t *testing.T) {
 }
 
 func TestGetGHToken_RespectsContextCancellation(t *testing.T) {
+	if !commandExists("gh") {
+		t.Skip("gh CLI not installed; context cancellation cannot reach exec.CommandContext path")
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
