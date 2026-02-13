@@ -50,6 +50,8 @@ SESSIONS_DIR=~/.tmux-claude-matrix/sessions
 CLAUDE_BIN=/usr/local/bin/claude
 ```
 
+**Note:** Repository clones use a local mirror cache (`~/.tmux-claude-matrix/.cache/mirrors/`) for faster subsequent clones.
+
 ## License
 
 MIT
