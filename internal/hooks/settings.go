@@ -44,6 +44,7 @@ func IsSetup(binaryPath string) (bool, error) {
 }
 
 // setupHooksToFile adds our hook entries to the given settings file path.
+// If an old entry with a different binary path exists, it is replaced.
 func setupHooksToFile(binaryPath, settingsPath string) error {
 	settings, err := readSettingsFile(settingsPath)
 	if err != nil {
@@ -55,10 +56,8 @@ func setupHooksToFile(binaryPath, settingsPath string) error {
 
 	for _, def := range hookEventDefs {
 		entries := getEventEntries(hooks, def.event)
-		if hasOurHook(entries, command) {
-			continue
-		}
-
+		// Remove any existing entry from us (handles binary path changes)
+		entries = filterOutOurEntries(entries)
 		entry := buildHookEntry(command, def.matcher)
 		entries = append(entries, entry)
 		hooks[def.event] = entries
@@ -149,7 +148,7 @@ func readSettingsFile(path string) (map[string]interface{}, error) {
 	return settings, nil
 }
 
-// writeSettingsFile writes the settings map as indented JSON.
+// writeSettingsFile atomically writes the settings map as indented JSON.
 func writeSettingsFile(path string, settings map[string]interface{}) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
@@ -159,8 +158,13 @@ func writeSettingsFile(path string, settings map[string]interface{}) error {
 	if err != nil {
 		return err
 	}
+	data = append(data, '\n')
 
-	return os.WriteFile(path, data, 0o644)
+	tmpPath := path + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0o644); err != nil {
+		return err
+	}
+	return os.Rename(tmpPath, path)
 }
 
 // ensureHooksMap ensures the "hooks" key exists and is a map.
