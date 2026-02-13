@@ -30,7 +30,7 @@ func SelectRepository(repos []*types.Repository) (*types.Repository, error) {
 		"--reverse",
 		"--border=rounded",
 		"--header=↑↓ navigate | enter: select | ctrl-c: cancel",
-		"--height=40%",
+		"--height=80%",
 	)
 	if err != nil {
 		return nil, err
@@ -107,7 +107,7 @@ func SelectSessionWithAction(sessions []*types.SessionStatus) (*SessionSelection
 		"--reverse",
 		"--border=rounded",
 		"--header=↑↓ navigate | enter: switch | ctrl-d: delete | ctrl-c: cancel",
-		"--height=40%",
+		"--height=80%",
 	)
 	if err != nil {
 		return &SessionSelection{Action: SessionActionCancel}, err
