@@ -40,6 +40,10 @@ func runCreate(ctx context.Context) error {
 	// Build sources list
 	var sources []repos.Source
 
+	if cfg.WorkspacesEnabled && cfg.WorkspacesFile != "" {
+		sources = append(sources, repos.NewWorkspaceSource(cfg.WorkspacesFile))
+	}
+
 	if cfg.LocalConfigEnabled && cfg.LocalReposFile != "" {
 		sources = append(sources, repos.NewLocalSource(cfg.LocalReposFile))
 	}
@@ -92,19 +96,26 @@ func runCreate(ctx context.Context) error {
 		return fmt.Errorf("repository selection cancelled: %w", err)
 	}
 
-	// Generate session name
 	sessionMgr := session.NewManager(cfg.SessionsDir)
+	gitMgr := git.New()
+	tmuxMgr := tmux.New()
+
+	if selected.IsWorkspace {
+		return createWorkspaceSession(cfg, selected, sessionMgr, gitMgr, tmuxMgr)
+	}
+
+	return createRepoSession(cfg, selected, sessionMgr, gitMgr, tmuxMgr)
+}
+
+func createRepoSession(cfg *types.Config, selected *types.Repository, sessionMgr *session.Manager, gitMgr *git.Manager, tmuxMgr *tmux.Manager) error {
 	repoName := git.ExtractRepoName(selected.URL)
 	sessionName, err := sessionMgr.GenerateUniqueName(repoName)
 	if err != nil {
 		return fmt.Errorf("failed to generate session name: %w", err)
 	}
 
-	// Clone repo
 	clonePath := filepath.Join(cfg.CloneDir, sessionName)
-	gitMgr := git.New()
 
-	// Check if already cloned
 	if _, err := os.Stat(clonePath); err == nil {
 		fmt.Printf("📦 Repository already exists at %s\n", clonePath)
 	} else {
@@ -114,9 +125,6 @@ func runCreate(ctx context.Context) error {
 		}
 		fmt.Println("✓ Clone complete")
 	}
-
-	// Create tmux session with Claude
-	tmuxMgr := tmux.New()
 
 	var claudeCmd string
 	if cfg.ClaudeBin != "" {
@@ -128,7 +136,6 @@ func runCreate(ctx context.Context) error {
 		return fmt.Errorf("failed to create tmux session: %w", err)
 	}
 
-	// Save metadata
 	sess := &types.Session{
 		Name:      sessionName,
 		RepoURL:   selected.URL,
@@ -141,7 +148,67 @@ func runCreate(ctx context.Context) error {
 
 	fmt.Println("✓ Session created successfully!")
 
-	// Switch to session
+	if err := tmuxMgr.SwitchToSession(sessionName); err != nil {
+		fmt.Printf("⚠️  Failed to switch to session: %v\n", err)
+		fmt.Printf("You can attach manually with: tmux attach -t %s\n", sessionName)
+	}
+
+	return nil
+}
+
+func createWorkspaceSession(cfg *types.Config, selected *types.Repository, sessionMgr *session.Manager, gitMgr *git.Manager, tmuxMgr *tmux.Manager) error {
+	sessionName, err := sessionMgr.GenerateUniqueName(selected.Name)
+	if err != nil {
+		return fmt.Errorf("failed to generate session name: %w", err)
+	}
+
+	workspacePath := filepath.Join(cfg.CloneDir, sessionName)
+	if err := os.MkdirAll(workspacePath, 0755); err != nil {
+		return fmt.Errorf("failed to create workspace directory: %w", err)
+	}
+
+	fmt.Printf("📦 Setting up workspace '%s' with %d repos...\n", selected.Name, len(selected.WorkspaceRepos))
+
+	for _, repoURL := range selected.WorkspaceRepos {
+		repoName := git.ExtractRepoName(repoURL)
+		// Replace slashes with dashes for directory name
+		dirName := strings.ReplaceAll(repoName, "/", "-")
+		clonePath := filepath.Join(workspacePath, dirName)
+
+		if _, err := os.Stat(clonePath); err == nil {
+			fmt.Printf("  ✓ %s already exists\n", repoName)
+		} else {
+			fmt.Printf("  📦 Cloning %s...\n", repoName)
+			if err := gitMgr.Clone(repoURL, clonePath); err != nil {
+				return fmt.Errorf("failed to clone %s: %w", repoURL, err)
+			}
+			fmt.Printf("  ✓ %s cloned\n", repoName)
+		}
+	}
+
+	var claudeCmd string
+	if cfg.ClaudeBin != "" {
+		claudeCmd = cfg.ClaudeBin + " " + strings.Join(cfg.ClaudeArgs, " ")
+	}
+
+	fmt.Printf("🚀 Creating tmux session '%s'...\n", sessionName)
+	if err := tmuxMgr.CreateSession(sessionName, workspacePath, claudeCmd); err != nil {
+		return fmt.Errorf("failed to create tmux session: %w", err)
+	}
+
+	sess := &types.Session{
+		Name:      sessionName,
+		RepoURL:   "workspace:" + selected.Name,
+		RepoURLs:  selected.WorkspaceRepos,
+		ClonePath: workspacePath,
+		CreatedAt: time.Now(),
+	}
+	if err := sessionMgr.Save(sess); err != nil {
+		fmt.Printf("⚠️  Failed to save session metadata: %v\n", err)
+	}
+
+	fmt.Println("✓ Workspace session created successfully!")
+
 	if err := tmuxMgr.SwitchToSession(sessionName); err != nil {
 		fmt.Printf("⚠️  Failed to switch to session: %v\n", err)
 		fmt.Printf("You can attach manually with: tmux attach -t %s\n", sessionName)

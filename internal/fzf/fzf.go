@@ -36,12 +36,22 @@ func SelectRepository(repos []*types.Repository) (*types.Repository, error) {
 		return nil, err
 	}
 
-	// Extract URL from selected line
-	url := extractURL(selected)
+	// Extract identifier from selected line
+	identifier := extractURL(selected)
 
-	// Find original repo
+	// Check if it's a workspace selection
+	if name, ok := strings.CutPrefix(identifier, "workspace:"); ok {
+		for _, repo := range repos {
+			if repo.IsWorkspace && repo.Name == name {
+				return repo, nil
+			}
+		}
+		return nil, fmt.Errorf("selected workspace not found: %s", name)
+	}
+
+	// Find original repo by URL
 	for _, repo := range repos {
-		if repo.URL == url {
+		if repo.URL == identifier {
 			return repo, nil
 		}
 	}
@@ -134,6 +144,9 @@ func SelectSessionWithAction(sessions []*types.SessionStatus) (*SessionSelection
 }
 
 func formatRepoLine(r *types.Repository) string {
+	if r.IsWorkspace {
+		return fmt.Sprintf("workspace: %s - %s [workspace:%s]", r.Name, r.Description, r.Name)
+	}
 	if r.Description != "" {
 		return fmt.Sprintf("%s: %s - %s [%s]", r.Source, r.Name, r.Description, r.URL)
 	}
