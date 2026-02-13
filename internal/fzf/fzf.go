@@ -323,21 +323,15 @@ func runFZF(input string, args ...string) (string, error) {
 	return strings.TrimSpace(out.String()), nil
 }
 
-// runFZFWithExpect runs FZF with key bindings to capture special key presses.
-// It uses --bind with println+accept instead of --expect to reliably override
-// FZF's default key bindings (e.g., ctrl-d's default delete-char/eof action)
-// and any user configuration in FZF_DEFAULT_OPTS.
-// Returns the key pressed and the selected line.
+// runFZFWithExpect runs FZF with --expect to capture special key presses.
+// It filters FZF_DEFAULT_OPTS to prevent user configuration from interfering
+// with our expected key bindings.
+// Returns the key pressed (empty string for Enter) and the selected line.
 func runFZFWithExpect(input string, expectedKeys []string, args ...string) (string, string, error) {
-	// Build --bind args for each expected key.
-	// Using --bind instead of --expect because --expect=ctrl-d can conflict
-	// with FZF's built-in ctrl-d binding (delete-char/eof) or user's
-	// FZF_DEFAULT_OPTS, causing the wrong item to be returned.
-	// --bind explicitly overrides any previous binding for the key.
-	var allArgs []string
-	for _, key := range expectedKeys {
-		allArgs = append(allArgs, fmt.Sprintf("--bind=%s:println(%s)+accept", key, key))
-	}
+	// Use --expect to capture special key presses.
+	// FZF_DEFAULT_OPTS is filtered out to prevent user bindings (e.g.,
+	// --bind=ctrl-d:delete-char) from overriding our --expect keys.
+	allArgs := []string{"--expect=" + strings.Join(expectedKeys, ",")}
 	allArgs = append(allArgs, args...)
 
 	cmd := exec.Command("fzf", allArgs...)
@@ -359,8 +353,7 @@ func runFZFWithExpect(input string, expectedKeys []string, args ...string) (stri
 }
 
 // parseFZFOutput parses FZF output to extract the key pressed and selected line.
-// When an expected key is pressed (via --bind println+accept): key\nselected\n
-// When Enter is pressed: selected\n
+// With --expect, fzf always outputs: key\nselected\n (key is empty for Enter).
 func parseFZFOutput(output string, expectedKeys []string) (string, string, error) {
 	if strings.TrimSpace(output) == "" {
 		return "", "", fmt.Errorf("no output from fzf")
