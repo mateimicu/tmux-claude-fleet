@@ -48,7 +48,7 @@ func runRefresh(ctx context.Context) error {
 	}
 
 	if cfg.GitHubEnabled {
-		token, source := repos.GetGitHubToken()
+		token, source := repos.GetGitHubToken(ctx)
 		if token == "" {
 			fmt.Println("⚠️  GitHub authentication not found, skipping GitHub repositories")
 			fmt.Println("   To enable GitHub integration:")

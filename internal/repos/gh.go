@@ -1,16 +1,18 @@
 package repos
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 // GetGitHubToken returns a GitHub token from either:
 // 1. GITHUB_TOKEN environment variable
 // 2. gh CLI (if installed and authenticated)
-func GetGitHubToken() (string, string) {
+func GetGitHubToken(ctx context.Context) (string, string) {
 	// First, check environment variable
 	token := os.Getenv("GITHUB_TOKEN")
 	if token != "" {
@@ -18,7 +20,7 @@ func GetGitHubToken() (string, string) {
 	}
 
 	// Second, try gh CLI
-	token, err := getGHToken()
+	token, err := getGHToken(ctx)
 	if err == nil && token != "" {
 		return token, "gh CLI"
 	}
@@ -27,14 +29,17 @@ func GetGitHubToken() (string, string) {
 }
 
 // getGHToken gets the token from gh CLI
-func getGHToken() (string, error) {
+func getGHToken(ctx context.Context) (string, error) {
 	// Check if gh is installed
 	if !commandExists("gh") {
 		return "", fmt.Errorf("gh not installed")
 	}
 
-	// Get token from gh
-	cmd := exec.Command("gh", "auth", "token")
+	// Get token from gh with a 3-second timeout
+	tokenCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(tokenCtx, "gh", "auth", "token")
 	output, err := cmd.Output()
 	if err != nil {
 		return "", err
