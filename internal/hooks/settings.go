@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const hookMarker = "claude-matrix hook-handler"
+const hookMarker = "--from=tmux-claude-matrix"
 
 // hookEventDefs defines the hook events we register, with optional matchers.
 var hookEventDefs = []struct {
@@ -52,7 +52,7 @@ func setupHooksToFile(binaryPath, settingsPath string) error {
 	}
 
 	hooks := ensureHooksMap(settings)
-	command := binaryPath + " hook-handler"
+	command := binaryPath + " hook-handler " + hookMarker
 
 	for _, def := range hookEventDefs {
 		entries := getEventEntries(hooks, def.event)
@@ -119,7 +119,7 @@ func isSetupInFile(binaryPath, settingsPath string) (bool, error) {
 		return false, nil
 	}
 
-	command := binaryPath + " hook-handler"
+	command := binaryPath + " hook-handler " + hookMarker
 	for _, def := range hookEventDefs {
 		entries := getEventEntries(hooks, def.event)
 		if hasOurHook(entries, command) {

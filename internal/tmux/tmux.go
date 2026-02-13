@@ -407,3 +407,9 @@ func (m *Manager) GetSessionNameFromPane(paneID string) (string, error) {
 	}
 	return strings.TrimSpace(string(output)), nil
 }
+
+// RenameWindowByPane renames the window containing the given pane ID
+func (m *Manager) RenameWindowByPane(paneID, newName string) error {
+	cmd := exec.Command("tmux", "rename-window", "-t", paneID, newName)
+	return cmd.Run()
+}
