@@ -83,9 +83,12 @@ func runDiagnose(ctx context.Context) error {
 	fmt.Println("🐙 GitHub Repository Source:")
 	fmt.Printf("  Enabled: %v\n", cfg.GitHubEnabled)
 
+	var ghToken string
+	var ghTokenSource string
+
 	if cfg.GitHubEnabled {
-		token, source := repos.GetGitHubToken(ctx)
-		if token == "" {
+		ghToken, ghTokenSource = repos.GetGitHubToken(ctx)
+		if ghToken == "" {
 			fmt.Println("  Status: ❌ No GitHub authentication found")
 			fmt.Println()
 			fmt.Println("  To enable GitHub integration:")
@@ -99,15 +102,15 @@ func runDiagnose(ctx context.Context) error {
 			fmt.Println("      - Export: export GITHUB_TOKEN=\"ghp_your_token\"")
 			fmt.Println("      - Or run: ./setup-github.sh")
 		} else {
-			fmt.Printf("  Authentication: ✓ Using %s\n", source)
-			fmt.Printf("  Token: %s...\n", token[:10])
+			fmt.Printf("  Authentication: ✓ Using %s\n", ghTokenSource)
+			fmt.Printf("  Token: %s...\n", ghToken[:10])
 
 			// Try to fetch repos
 			fmt.Println("  Testing GitHub API...")
 			if len(cfg.GitHubOrgs) > 0 {
 				fmt.Printf("  Organization filter: %s\n", strings.Join(cfg.GitHubOrgs, ", "))
 			}
-			source := repos.NewGitHubSource(token, cfg.CacheDir, cfg.CacheTTL, cfg.GitHubOrgs)
+			source := repos.NewGitHubSource(ghToken, cfg.CacheDir, cfg.CacheTTL, cfg.GitHubOrgs)
 			githubRepos, err := source.List(ctx)
 			if err != nil {
 				fmt.Printf("  Error: ❌ %v\n", err)
@@ -142,9 +145,8 @@ func runDiagnose(ctx context.Context) error {
 	if cfg.LocalConfigEnabled && cfg.LocalReposFile != "" {
 		sources = append(sources, repos.NewLocalSource(cfg.LocalReposFile))
 	}
-	token, _ := repos.GetGitHubToken(ctx)
-	if cfg.GitHubEnabled && token != "" {
-		sources = append(sources, repos.NewGitHubSource(token, cfg.CacheDir, cfg.CacheTTL, cfg.GitHubOrgs))
+	if cfg.GitHubEnabled && ghToken != "" {
+		sources = append(sources, repos.NewGitHubSource(ghToken, cfg.CacheDir, cfg.CacheTTL, cfg.GitHubOrgs))
 	}
 
 	if len(sources) == 0 {

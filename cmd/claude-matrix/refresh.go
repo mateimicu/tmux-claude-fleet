@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -73,7 +74,11 @@ func runRefresh(ctx context.Context) error {
 
 	// Fetch repos (this will update the cache)
 	discoverer := repos.NewDiscoverer(sources...)
-	repoList, err := discoverer.ListAll(ctx)
+
+	discoveryCtx, discoveryCancel := context.WithTimeout(ctx, 15*time.Second)
+	defer discoveryCancel()
+
+	repoList, err := discoverer.ListAll(discoveryCtx)
 	if err != nil {
 		return fmt.Errorf("failed to fetch repositories: %w", err)
 	}
