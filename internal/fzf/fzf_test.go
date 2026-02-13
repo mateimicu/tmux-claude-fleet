@@ -71,7 +71,7 @@ func TestGetClaudeStatusIndicator(t *testing.T) {
 		{"Idle", types.ClaudeStateIdle, "💬"},
 		{"Error", types.ClaudeStateError, "⚠️"},
 		{"Stopped", types.ClaudeStateStopped, "⚫"},
-		{"Unknown", types.ClaudeStateUnknown, "❓"},
+		{"Unknown", types.ClaudeStateUnknown, "❔"},
 	}
 
 	for _, tt := range tests {

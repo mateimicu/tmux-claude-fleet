@@ -47,6 +47,19 @@ func TestSetupHooks_EmptySettings(t *testing.T) {
 
 	// Verify the command contains our binary path and hook-handler
 	verifyHookCommand(t, hooks, "UserPromptSubmit", "/usr/local/bin/claude-matrix hook-handler")
+
+	// Verify SessionStart has the "startup" matcher
+	sessionStartEntries, ok := hooks["SessionStart"].([]interface{})
+	if !ok || len(sessionStartEntries) == 0 {
+		t.Fatal("expected SessionStart entries")
+	}
+	ssEntry, ok := sessionStartEntries[0].(map[string]interface{})
+	if !ok {
+		t.Fatal("expected SessionStart entry to be a map")
+	}
+	if ssEntry["matcher"] != "startup" {
+		t.Errorf("expected SessionStart matcher to be %q, got %v", "startup", ssEntry["matcher"])
+	}
 }
 
 func TestSetupHooks_ExistingHooks(t *testing.T) {

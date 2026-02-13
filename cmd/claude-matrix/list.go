@@ -67,7 +67,7 @@ func runList(_ context.Context) error {
 		// Build session status list
 		var statusList []*types.SessionStatus
 		for _, sess := range sessions {
-			status := &types.SessionStatus{
+			sessStatus := &types.SessionStatus{
 				Session:       sess,
 				TmuxActive:    activeMap[sess.Name],
 				ClaudeRunning: false,
@@ -75,15 +75,15 @@ func runList(_ context.Context) error {
 			}
 
 			// Check Claude status if session is active
-			if status.TmuxActive {
-				status.ClaudeRunning = tmuxMgr.GetClaudeStatus(sess.Name)
+			if sessStatus.TmuxActive {
+				sessStatus.ClaudeRunning = tmuxMgr.GetClaudeStatus(sess.Name)
 				// Get detailed state
 				state, lastActivity := tmuxMgr.GetDetailedClaudeState(sess.Name)
-				status.ClaudeState = state
-				status.LastActivity = lastActivity
+				sessStatus.ClaudeState = state
+				sessStatus.LastActivity = lastActivity
 			}
 
-			statusList = append(statusList, status)
+			statusList = append(statusList, sessStatus)
 		}
 
 		// Show FZF selection with action support

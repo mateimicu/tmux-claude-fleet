@@ -186,9 +186,20 @@ func (m *Manager) SelectWindow(session, window string) error {
 	return cmd.Run()
 }
 
+// isValidClaudeState returns true if the state is a known ClaudeState constant.
+func isValidClaudeState(s types.ClaudeState) bool {
+	switch s {
+	case types.ClaudeStateIdle, types.ClaudeStateRunning,
+		types.ClaudeStateWaitingForInput, types.ClaudeStateStopped,
+		types.ClaudeStateError, types.ClaudeStateUnknown:
+		return true
+	}
+	return false
+}
+
 // stripEmojiPrefix removes known status emoji prefixes from a window name.
 func stripEmojiPrefix(name string) string {
-	prefixes := []string{"🟢", "❓", "💬", "⚫", "⚠️", "💤", "⏸️"}
+	prefixes := []string{"🟢", "❓", "❔", "💬", "⚫", "⚠️", "💤", "⏸️"}
 	for _, p := range prefixes {
 		name = strings.TrimPrefix(name, p)
 	}
@@ -202,8 +213,9 @@ func (m *Manager) GetDetailedClaudeState(session string) (types.ClaudeState, tim
 	if sf, err := status.ReadState(statusDir, session); err == nil {
 		if !status.IsStale(sf, 5*time.Minute) {
 			state := types.ClaudeState(sf.State)
-			lastActivity := sf.UpdatedAt
-			return state, lastActivity
+			if isValidClaudeState(state) {
+				return state, sf.UpdatedAt
+			}
 		}
 	}
 	// Fall back to process-based detection
