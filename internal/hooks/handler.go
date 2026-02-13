@@ -74,6 +74,8 @@ func HandleHookEvent(reader io.Reader) error {
 	statusDir := status.DefaultStatusDir()
 
 	if state == types.ClaudeStateStopped {
+		// Reset window name to plain "claude" before removing state
+		_ = exec.Command("tmux", "rename-window", "-t", tmuxPane, "claude").Run() //nolint:errcheck // Best-effort reset
 		return status.RemoveState(statusDir, sessionName)
 	}
 
