@@ -110,13 +110,15 @@ func SelectSessionWithAction(sessions []*types.SessionStatus) (*SessionSelection
 	}
 
 	// Run FZF with action keys
+	header := "↑↓ navigate | enter: switch | ctrl-d: delete | ctrl-c: cancel\n" +
+		"Session: 🟢 active  ⚫ inactive | Claude: 🟢 running  ⏸️ input  💤 idle  ⚠️ error  ⚫ stopped  ❓ unknown"
 	key, selected, err := runFZFWithExpect(
 		strings.Join(lines, "\n"),
 		[]string{"ctrl-d"},
 		"--prompt=🚀 Select session > ",
 		"--reverse",
 		"--border=rounded",
-		"--header=↑↓ navigate | enter: switch | ctrl-d: delete | ctrl-c: cancel",
+		"--header="+header,
 		"--height=80%",
 	)
 	if err != nil {
