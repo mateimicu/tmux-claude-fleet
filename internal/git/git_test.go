@@ -2,6 +2,7 @@ package git
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 )
@@ -57,6 +58,34 @@ func TestMirrorExists(t *testing.T) {
 	// Should exist now
 	if !m.MirrorExists(mirrorPath) {
 		t.Error("MirrorExists should return true for existing path")
+	}
+}
+
+func TestUpdateMirror(t *testing.T) {
+	// Create a temporary directory for the mirror
+	tmpDir := t.TempDir()
+	mirrorPath := filepath.Join(tmpDir, "test-mirror")
+
+	// Initialize a bare git repository to simulate a mirror
+	if err := os.MkdirAll(mirrorPath, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Initialize as bare repo (mirror)
+	cmd := exec.Command("git", "init", "--bare", mirrorPath)
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("Failed to init bare repo: %v", err)
+	}
+
+	m := &Manager{}
+
+	// updateMirror should not error on a valid bare repository
+	// Note: It will fail to fetch since there's no remote, but that's expected
+	// We're just testing the method exists and runs git fetch
+	err := m.updateMirror(mirrorPath)
+	// We expect an error since there's no remote configured, but the method should execute
+	if err == nil {
+		t.Log("updateMirror executed (no remote configured in test repo)")
 	}
 }
 

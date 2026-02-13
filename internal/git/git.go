@@ -33,9 +33,14 @@ func (m *Manager) Clone(url, path string) error {
 func (m *Manager) CloneWithCache(url, path, cacheDir string) error {
 	mirrorPath := m.GetMirrorPath(url, cacheDir)
 
-	// If mirror doesn't exist, create it
 	if !m.MirrorExists(mirrorPath) {
+		// Create new mirror
 		if err := m.createMirror(url, mirrorPath); err != nil {
+			return err
+		}
+	} else {
+		// Update existing mirror with latest commits
+		if err := m.updateMirror(mirrorPath); err != nil {
 			return err
 		}
 	}
@@ -75,6 +80,15 @@ func (m *Manager) createMirror(url, path string) error {
 	return cmd.Run()
 }
 
+// updateMirror fetches the latest objects into an existing mirror
+func (m *Manager) updateMirror(path string) error {
+	cmd := exec.Command("git", "-C", path, "fetch", "--prune")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
+}
+
 // cloneWithReference clones using an existing mirror as reference
 func (m *Manager) cloneWithReference(url, path, reference string) error {
 	// Ensure parent directory exists
@@ -82,7 +96,7 @@ func (m *Manager) cloneWithReference(url, path, reference string) error {
 		return err
 	}
 
-	cmd := exec.Command("git", "clone", "--reference", reference, url, path)
+	cmd := exec.Command("git", "clone", "--reference", reference, "--dissociate", url, path)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
