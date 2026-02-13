@@ -1,0 +1,30 @@
+# Tmux Claude Matrix - Workspace Configuration
+#
+# Define workspaces that group multiple repositories together.
+# When you select a workspace, all its repos are cloned into a single
+# directory and Claude is launched with access to all of them.
+#
+# Place this file at: ~/.tmux-claude-matrix/workspaces.yaml
+
+workspaces:
+  # Example: A full-stack project with frontend, backend, and shared libraries
+  my-fullstack-app:
+    repos:
+      - https://github.com/yourorg/frontend
+      - https://github.com/yourorg/backend
+      - https://github.com/yourorg/shared-libs
+    description: "Full-stack app with frontend, backend, and shared libs"
+
+  # Example: Infrastructure repos
+  infra:
+    repos:
+      - https://github.com/yourorg/terraform
+      - https://github.com/yourorg/k8s-configs
+      - https://github.com/yourorg/monitoring
+    description: "Infrastructure and monitoring"
+
+  # Example: Workspace with SSH URLs (no description auto-generates "N repos")
+  private-project:
+    repos:
+      - git@github.com:yourorg/private-api.git
+      - git@github.com:yourorg/private-web.git

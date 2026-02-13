@@ -48,6 +48,8 @@ func defaults() *types.Config {
 		GitHubOrgs:         []string{}, // Empty = all orgs
 		LocalConfigEnabled: true,
 		LocalReposFile:     filepath.Join(home, ".tmux-claude-matrix/repos.txt"),
+		WorkspacesEnabled:  true,
+		WorkspacesFile:     filepath.Join(home, ".tmux-claude-matrix/workspaces.yaml"),
 		ClaudeBin:          findClaudeBin(),
 		ClaudeArgs:         []string{"--dangerously-skip-permissions"},
 		CacheDir:           filepath.Join(home, ".tmux-claude-matrix/.cache"),
@@ -148,6 +150,10 @@ func applyConfigValue(cfg *types.Config, key, value string) {
 		}
 	case "SESSIONS_DIR":
 		cfg.SessionsDir = value
+	case "WORKSPACES_ENABLED":
+		cfg.WorkspacesEnabled = value == "1" || value == "true"
+	case "WORKSPACES_FILE":
+		cfg.WorkspacesFile = value
 	}
 }
 
@@ -192,6 +198,12 @@ func applyEnvOverrides(cfg *types.Config) {
 	}
 	if val := os.Getenv("TMUX_CLAUDE_MATRIX_SESSIONS_DIR"); val != "" {
 		cfg.SessionsDir = val
+	}
+	if val := os.Getenv("TMUX_CLAUDE_MATRIX_WORKSPACES_ENABLED"); val != "" {
+		cfg.WorkspacesEnabled = val == "1" || val == "true"
+	}
+	if val := os.Getenv("TMUX_CLAUDE_MATRIX_WORKSPACES_FILE"); val != "" {
+		cfg.WorkspacesFile = val
 	}
 }
 

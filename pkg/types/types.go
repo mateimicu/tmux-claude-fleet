@@ -2,12 +2,14 @@ package types
 
 import "time"
 
-// Repository represents a discovered repository
+// Repository represents a discovered repository or workspace
 type Repository struct {
-	Source      string `json:"source"`      // "local", "github"
-	URL         string `json:"url"`         // Clone URL
-	Name        string `json:"name"`        // Display name (org/repo)
-	Description string `json:"description"` // Optional description
+	Source         string   `json:"source"`          // "local", "github", "workspace"
+	URL            string   `json:"url"`             // Clone URL (empty for workspaces)
+	Name           string   `json:"name"`            // Display name (org/repo or workspace name)
+	Description    string   `json:"description"`     // Optional description
+	IsWorkspace    bool     `json:"is_workspace"`    // True if this is a multi-repo workspace
+	WorkspaceRepos []string `json:"workspace_repos"` // Repo URLs for workspaces
 }
 
 // Session represents a tmux session managed by matrix
@@ -16,6 +18,7 @@ type Session struct {
 	Name      string    `json:"name"`
 	RepoURL   string    `json:"repo_url"`
 	ClonePath string    `json:"clone_path"`
+	RepoURLs  []string  `json:"repo_urls,omitempty"` // Multiple repos for workspaces
 }
 
 // ClaudeState represents the detailed state of a Claude process
@@ -49,6 +52,7 @@ type SessionStatus struct {
 type Config struct {
 	CloneDir           string
 	LocalReposFile     string
+	WorkspacesFile     string
 	ClaudeBin          string
 	CacheDir           string
 	SessionsDir        string
@@ -57,4 +61,5 @@ type Config struct {
 	CacheTTL           time.Duration
 	GitHubEnabled      bool
 	LocalConfigEnabled bool
+	WorkspacesEnabled  bool
 }
