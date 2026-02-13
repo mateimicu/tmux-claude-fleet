@@ -110,7 +110,7 @@ func SelectSessionWithAction(sessions []*types.SessionStatus) (*SessionSelection
 
 	// Run FZF with action keys
 	legend := "↑↓ navigate | enter: switch | ctrl-d: delete | ctrl-c: cancel\n" +
-		"Session: 🟢 active  ⚫ inactive | Claude: 🟢 running  ⏸️ input  💤 idle  ⚠️ error  ⚫ stopped  ❓ unknown"
+		"Session: 🟢 active  ⚫ inactive | Claude: 🟢 running  ❓ input  💬 idle  ⚠️ error  ⚫ stopped  ❔ unknown"
 	key, selected, err := runFZFWithExpect(
 		strings.Join(allLines, "\n"),
 		[]string{"ctrl-d"},
@@ -250,9 +250,9 @@ func getClaudeStatusIndicator(state types.ClaudeState) string {
 	case types.ClaudeStateRunning:
 		return "🟢"
 	case types.ClaudeStateWaitingForInput:
-		return "⏸️"
+		return "❓"
 	case types.ClaudeStateIdle:
-		return "💤"
+		return "💬"
 	case types.ClaudeStateError:
 		return "⚠️"
 	case types.ClaudeStateStopped:
@@ -268,9 +268,9 @@ func getClaudeStateLabel(state types.ClaudeState) string {
 	case types.ClaudeStateRunning:
 		return "Active"
 	case types.ClaudeStateWaitingForInput:
-		return "Needs Input"
+		return "Waiting"
 	case types.ClaudeStateIdle:
-		return "Idle"
+		return "Ready"
 	case types.ClaudeStateError:
 		return "Error"
 	case types.ClaudeStateStopped:

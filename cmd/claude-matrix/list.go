@@ -12,6 +12,7 @@ import (
 	"github.com/mateimicu/tmux-claude-matrix/internal/config"
 	"github.com/mateimicu/tmux-claude-matrix/internal/fzf"
 	"github.com/mateimicu/tmux-claude-matrix/internal/session"
+	"github.com/mateimicu/tmux-claude-matrix/internal/status"
 	"github.com/mateimicu/tmux-claude-matrix/internal/tmux"
 	"github.com/mateimicu/tmux-claude-matrix/pkg/types"
 )
@@ -140,6 +141,9 @@ func handleDeleteAction(sessionMgr *session.Manager, tmuxMgr *tmux.Manager, sele
 	if err := sessionMgr.Delete(sess.Name); err != nil {
 		return fmt.Errorf("failed to delete session metadata: %w", err)
 	}
+
+	// Clean up status file
+	status.RemoveState(status.DefaultStatusDir(), sess.Name) //nolint:errcheck // Best-effort cleanup
 
 	fmt.Printf("✓ Session '%s' deleted successfully!\n\n", sess.Name)
 	return nil

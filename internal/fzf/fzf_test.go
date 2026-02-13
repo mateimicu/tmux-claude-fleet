@@ -67,8 +67,8 @@ func TestGetClaudeStatusIndicator(t *testing.T) {
 		expected string
 	}{
 		{"Running", types.ClaudeStateRunning, "🟢"},
-		{"Waiting for input", types.ClaudeStateWaitingForInput, "⏸️"},
-		{"Idle", types.ClaudeStateIdle, "💤"},
+		{"Waiting for input", types.ClaudeStateWaitingForInput, "❓"},
+		{"Idle", types.ClaudeStateIdle, "💬"},
 		{"Error", types.ClaudeStateError, "⚠️"},
 		{"Stopped", types.ClaudeStateStopped, "⚫"},
 		{"Unknown", types.ClaudeStateUnknown, "❓"},
@@ -92,8 +92,8 @@ func TestGetClaudeStateLabel(t *testing.T) {
 		expected string
 	}{
 		{"Running", types.ClaudeStateRunning, "Active"},
-		{"Waiting for input", types.ClaudeStateWaitingForInput, "Needs Input"},
-		{"Idle", types.ClaudeStateIdle, "Idle"},
+		{"Waiting for input", types.ClaudeStateWaitingForInput, "Waiting"},
+		{"Idle", types.ClaudeStateIdle, "Ready"},
 		{"Error", types.ClaudeStateError, "Error"},
 		{"Stopped", types.ClaudeStateStopped, "Stopped"},
 		{"Unknown", types.ClaudeStateUnknown, "Unknown"},
@@ -488,7 +488,7 @@ func TestExtractSessionName(t *testing.T) {
 		},
 		{
 			name:     "Extract from table row with waiting state",
-			line:     " 001  🟢  github  user/repo                   ⏸️ Needs Input  [my-session]",
+			line:     " 001  🟢  github  user/repo                   ❓ Waiting  [my-session]",
 			expected: "my-session",
 		},
 	}
