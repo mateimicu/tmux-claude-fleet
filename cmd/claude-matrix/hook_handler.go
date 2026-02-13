@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateimicu/tmux-claude-matrix/internal/hooks"
+	"github.com/mateimicu/tmux-claude-matrix/internal/tmux"
 )
 
 func hookHandlerCmd() *cobra.Command {
@@ -14,7 +15,7 @@ func hookHandlerCmd() *cobra.Command {
 		Short:  "Handle Claude Code hook events (internal use)",
 		Hidden: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return hooks.HandleHookEvent(os.Stdin)
+			return hooks.HandleHookEvent(os.Stdin, tmux.New())
 		},
 	}
 }

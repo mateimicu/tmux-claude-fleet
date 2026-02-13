@@ -45,8 +45,8 @@ func TestSetupHooks_EmptySettings(t *testing.T) {
 		}
 	}
 
-	// Verify the command contains our binary path and hook-handler
-	verifyHookCommand(t, hooks, "UserPromptSubmit", "/usr/local/bin/claude-matrix hook-handler")
+	// Verify the command contains our binary path, hook-handler, and marker flag
+	verifyHookCommand(t, hooks, "UserPromptSubmit", "/usr/local/bin/claude-matrix hook-handler --from=tmux-claude-matrix")
 
 	// Verify SessionStart has the "startup" matcher
 	sessionStartEntries, ok := hooks["SessionStart"].([]interface{})

@@ -4,10 +4,9 @@ import (
 	"encoding/json"
 	"io"
 	"os"
-	"os/exec"
-	"strings"
 
 	"github.com/mateimicu/tmux-claude-matrix/internal/status"
+	"github.com/mateimicu/tmux-claude-matrix/internal/tmux"
 	"github.com/mateimicu/tmux-claude-matrix/pkg/types"
 )
 
@@ -46,7 +45,7 @@ func MapEventToState(event *HookEvent) types.ClaudeState {
 }
 
 // HandleHookEvent reads a hook event from stdin and updates tmux state accordingly.
-func HandleHookEvent(reader io.Reader) error {
+func HandleHookEvent(reader io.Reader, mgr *tmux.Manager) error {
 	data, err := io.ReadAll(reader)
 	if err != nil {
 		return err
@@ -64,18 +63,16 @@ func HandleHookEvent(reader io.Reader) error {
 		return nil
 	}
 
-	// Query tmux for the session name
-	out, err := exec.Command("tmux", "display-message", "-t", tmuxPane, "-p", "#{session_name}").Output()
+	sessionName, err := mgr.GetSessionNameFromPane(tmuxPane)
 	if err != nil {
 		return err
 	}
-	sessionName := strings.TrimSpace(string(out))
 
 	statusDir := status.DefaultStatusDir()
 
 	if state == types.ClaudeStateStopped {
 		// Reset window name to plain "claude" before removing state
-		_ = exec.Command("tmux", "rename-window", "-t", tmuxPane, "claude").Run() //nolint:errcheck // Best-effort reset
+		_ = mgr.RenameWindowByPane(tmuxPane, "claude") //nolint:errcheck // Best-effort reset
 		return status.RemoveState(statusDir, sessionName)
 	}
 
@@ -90,5 +87,5 @@ func HandleHookEvent(reader io.Reader) error {
 	}
 
 	emoji := status.EmojiForState(state)
-	return exec.Command("tmux", "rename-window", "-t", tmuxPane, emoji+"claude").Run()
+	return mgr.RenameWindowByPane(tmuxPane, emoji+"claude")
 }

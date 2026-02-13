@@ -41,13 +41,27 @@ func WriteState(statusDir, sessionName string, state types.ClaudeState, claudeSe
 	}
 
 	target := stateFilePath(statusDir, sessionName)
-	tmpPath := target + ".tmp"
 
-	if err := os.WriteFile(tmpPath, data, 0o644); err != nil {
+	tmpFile, err := os.CreateTemp(statusDir, sessionName+"*.tmp")
+	if err != nil {
 		return err
 	}
+	tmpPath := tmpFile.Name()
 
-	return os.Rename(tmpPath, target)
+	if _, err := tmpFile.Write(data); err != nil {
+		tmpFile.Close()
+		os.Remove(tmpPath)
+		return err
+	}
+	if err := tmpFile.Close(); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+	if err := os.Rename(tmpPath, target); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+	return nil
 }
 
 // ReadState reads and parses the state file for the given session.
