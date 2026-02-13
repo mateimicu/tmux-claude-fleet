@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mateimicu/tmux-claude-matrix/internal/status"
 	"github.com/mateimicu/tmux-claude-matrix/pkg/types"
 )
 
@@ -164,8 +165,28 @@ func (m *Manager) SelectWindow(session, window string) error {
 	return cmd.Run()
 }
 
+// stripEmojiPrefix removes known status emoji prefixes from a window name.
+func stripEmojiPrefix(name string) string {
+	prefixes := []string{"🟢", "❓", "💬", "⚫", "⚠️", "💤", "⏸️"}
+	for _, p := range prefixes {
+		name = strings.TrimPrefix(name, p)
+	}
+	return strings.TrimSpace(name)
+}
+
 // GetDetailedClaudeState returns the detailed state of Claude in a session
 func (m *Manager) GetDetailedClaudeState(session string) (types.ClaudeState, time.Time) {
+	// Try state file first (written by Claude Code hooks)
+	statusDir := status.DefaultStatusDir()
+	if sf, err := status.ReadState(statusDir, session); err == nil {
+		if !status.IsStale(sf, 5*time.Minute) {
+			state := types.ClaudeState(sf.State)
+			lastActivity := sf.UpdatedAt
+			return state, lastActivity
+		}
+	}
+	// Fall back to process-based detection
+
 	// First check if Claude window exists
 	cmd := exec.Command("tmux", "list-windows", "-t", session, "-F", "#{window_name}")
 	output, err := cmd.Output()
@@ -174,10 +195,12 @@ func (m *Manager) GetDetailedClaudeState(session string) (types.ClaudeState, tim
 	}
 
 	hasClaudeWindow := false
+	claudeWindowName := ""
 	windows := strings.Split(strings.TrimSpace(string(output)), "\n")
 	for _, w := range windows {
-		if w == "claude" {
+		if stripEmojiPrefix(w) == "claude" {
 			hasClaudeWindow = true
+			claudeWindowName = w
 			break
 		}
 	}
@@ -187,7 +210,7 @@ func (m *Manager) GetDetailedClaudeState(session string) (types.ClaudeState, tim
 	}
 
 	// Get pane PID
-	cmd = exec.Command("tmux", "list-panes", "-t", session+":claude", "-F", "#{pane_pid}")
+	cmd = exec.Command("tmux", "list-panes", "-t", session+":"+claudeWindowName, "-F", "#{pane_pid}")
 	output, err = cmd.Output()
 	if err != nil {
 		return types.ClaudeStateStopped, time.Time{}
@@ -213,13 +236,13 @@ func (m *Manager) GetDetailedClaudeState(session string) (types.ClaudeState, tim
 	}
 
 	// Capture pane content to analyze
-	content, err := m.capturePaneContent(session, "claude", 50)
+	content, err := m.capturePaneContent(session, claudeWindowName, 50)
 	if err != nil {
 		return types.ClaudeStateUnknown, time.Time{}
 	}
 
 	// Get last activity time from pane
-	lastActivity := m.getPaneLastActivity(session, "claude")
+	lastActivity := m.getPaneLastActivity(session, claudeWindowName)
 
 	// Analyze state based on process state and output
 	state := m.analyzeClaudeState(processState, content)
@@ -354,4 +377,21 @@ func (m *Manager) analyzeClaudeState(processState, content string) types.ClaudeS
 	default:
 		return types.ClaudeStateUnknown
 	}
+}
+
+// RenameWindow renames a window in a tmux session
+func (m *Manager) RenameWindow(session, window, newName string) error {
+	target := fmt.Sprintf("%s:%s", session, window)
+	cmd := exec.Command("tmux", "rename-window", "-t", target, newName)
+	return cmd.Run()
+}
+
+// GetSessionNameFromPane returns the session name for a given pane ID
+func (m *Manager) GetSessionNameFromPane(paneID string) (string, error) {
+	cmd := exec.Command("tmux", "display-message", "-t", paneID, "-p", "#{session_name}")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(output)), nil
 }

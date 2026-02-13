@@ -6,6 +6,34 @@ import (
 	"github.com/mateimicu/tmux-claude-matrix/pkg/types"
 )
 
+func TestStripEmojiPrefix(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"claude", "claude"},
+		{"🟢claude", "claude"},
+		{"❓claude", "claude"},
+		{"💬claude", "claude"},
+		{"⚫claude", "claude"},
+		{"⚠️claude", "claude"},
+		{"💤claude", "claude"},
+		{"⏸️claude", "claude"},
+		{"🟢 claude", "claude"},
+		{"some-window", "some-window"},
+		{"", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := stripEmojiPrefix(tt.input)
+			if got != tt.want {
+				t.Errorf("stripEmojiPrefix(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestAnalyzeClaudeState(t *testing.T) {
 	m := &Manager{}
 
