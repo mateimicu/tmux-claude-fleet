@@ -17,8 +17,17 @@ get_tmux_option() {
     fi
 }
 
-# Auto-build binary if it doesn't exist
+# Check if binary needs to be built or rebuilt
+needs_build=false
 if [ ! -x "$BINARY" ]; then
+    needs_build=true
+elif [ -n "$(find "$CURRENT_DIR" -name '*.go' -newer "$BINARY" -print -quit)" ] || \
+     [ "$CURRENT_DIR/go.mod" -nt "$BINARY" ] || \
+     [ "$CURRENT_DIR/go.sum" -nt "$BINARY" ]; then
+    needs_build=true
+fi
+
+if [ "$needs_build" = true ]; then
     # Check if Go is installed
     if ! command -v go >/dev/null 2>&1; then
         tmux display-message "claude-matrix: Go not found. Install Go or download binary from releases."
@@ -31,7 +40,7 @@ if [ ! -x "$BINARY" ]; then
         exit 1
     fi
 
-    tmux display-message "claude-matrix: Building binary (first time only)..."
+    tmux display-message "claude-matrix: Building binary..."
 
     # Build the binary in the background
     (
@@ -49,18 +58,15 @@ fi
 # Get keybindings
 create_key=$(get_tmux_option "@claude-matrix-create-key" "a")
 list_key=$(get_tmux_option "@claude-matrix-list-key" "A")
-delete_key=$(get_tmux_option "@claude-matrix-delete-key" "D")
 use_popup=$(get_tmux_option "@claude-matrix-use-popup" "true")
 
 # Bind keys using popup or new-window
 if [ "$use_popup" = "true" ]; then
     tmux bind-key "$create_key" display-popup -w 80% -h 80% -E "$BINARY create"
     tmux bind-key "$list_key" display-popup -w 80% -h 80% -E "$BINARY list"
-    tmux bind-key "$delete_key" display-popup -w 80% -h 80% -E "$BINARY delete"
 else
     tmux bind-key "$create_key" new-window "$BINARY create"
     tmux bind-key "$list_key" new-window "$BINARY list"
-    tmux bind-key "$delete_key" new-window "$BINARY delete"
 fi
 
 tmux display-message "claude-matrix: Plugin loaded (Go version)"
