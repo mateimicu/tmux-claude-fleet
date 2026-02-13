@@ -29,6 +29,66 @@ func (m *Manager) Clone(url, path string) error {
 	return cmd.Run()
 }
 
+// CloneWithCache clones a repository using a local mirror cache for faster cloning
+func (m *Manager) CloneWithCache(url, path, cacheDir string) error {
+	mirrorPath := m.GetMirrorPath(url, cacheDir)
+
+	// If mirror doesn't exist, create it
+	if !m.MirrorExists(mirrorPath) {
+		if err := m.createMirror(url, mirrorPath); err != nil {
+			return err
+		}
+	}
+
+	// Clone using the mirror as reference
+	return m.cloneWithReference(url, path, mirrorPath)
+}
+
+// GetMirrorPath returns the path where the mirror cache should be stored
+func (m *Manager) GetMirrorPath(url, cacheDir string) string {
+	// Extract org/repo and convert to filesystem-safe name
+	repoName := ExtractRepoName(url)
+	safeName := strings.ReplaceAll(repoName, "/", "-")
+	return filepath.Join(cacheDir, "mirrors", safeName)
+}
+
+// MirrorExists checks if a mirror cache exists at the given path
+func (m *Manager) MirrorExists(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return info.IsDir()
+}
+
+// createMirror creates a new mirror cache of the repository
+func (m *Manager) createMirror(url, path string) error {
+	// Ensure parent directory exists
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+
+	cmd := exec.Command("git", "clone", "--mirror", url, path)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
+}
+
+// cloneWithReference clones using an existing mirror as reference
+func (m *Manager) cloneWithReference(url, path, reference string) error {
+	// Ensure parent directory exists
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+
+	cmd := exec.Command("git", "clone", "--reference", reference, url, path)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
+}
+
 // ExtractRepoName extracts org/repo from a git URL
 func ExtractRepoName(url string) string {
 	// Remove .git suffix

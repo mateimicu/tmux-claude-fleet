@@ -105,8 +105,8 @@ func runCreate(ctx context.Context) error {
 	if _, err := os.Stat(clonePath); err == nil {
 		fmt.Printf("📦 Repository already exists at %s\n", clonePath)
 	} else {
-		fmt.Printf("📦 Cloning %s...\n", selected.URL)
-		if err := gitMgr.Clone(selected.URL, clonePath); err != nil {
+		fmt.Printf("📦 Cloning %s (using cache for faster cloning)...\n", selected.URL)
+		if err := gitMgr.CloneWithCache(selected.URL, clonePath, cfg.CacheDir); err != nil {
 			return fmt.Errorf("failed to clone repository: %w", err)
 		}
 		fmt.Println("✓ Clone complete")
