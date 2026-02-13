@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -45,6 +47,9 @@ func runList(_ context.Context) error {
 
 		if len(sessions) == 0 {
 			fmt.Println("No sessions found. Create one with: claude-matrix create")
+			fmt.Print("\nPress Enter to close...")
+			//nolint:errcheck // intentionally ignoring - just waiting for keypress
+			bufio.NewReader(os.Stdin).ReadBytes('\n')
 			return nil
 		}
 
