@@ -255,6 +255,65 @@ func TestExtractURLWorkspace(t *testing.T) {
 	}
 }
 
+func TestSessionHeaderHasNoNewlines(t *testing.T) {
+	// fzf's argument parser mishandles newlines in --header values
+	// in versions >= 0.36.0, causing "unknown action" errors.
+	// The header must be a single line.
+	header := sessionHeader()
+	if strings.Contains(header, "\n") {
+		t.Errorf("sessionHeader() contains newline, which breaks fzf: %q", header)
+	}
+}
+
+func TestSessionLegend(t *testing.T) {
+	legend := sessionLegend()
+	if legend == "" {
+		t.Error("sessionLegend() should not be empty")
+	}
+	if strings.Contains(legend, "\n") {
+		t.Errorf("sessionLegend() contains newline: %q", legend)
+	}
+}
+
+func TestBuildSessionFZFInput(t *testing.T) {
+	sessions := []*types.SessionStatus{
+		{
+			Session: &types.Session{
+				Name:      "sess-1",
+				RepoURL:   "https://github.com/org/repo",
+				CreatedAt: time.Now(),
+			},
+			TmuxActive:  true,
+			ClaudeState: types.ClaudeStateRunning,
+		},
+	}
+
+	input, headerLines := buildSessionFZFInput(sessions)
+
+	// Legend should be the first line(s) of input, consumed by --header-lines
+	if headerLines < 1 {
+		t.Errorf("expected headerLines >= 1, got %d", headerLines)
+	}
+
+	lines := strings.Split(input, "\n")
+	if len(lines) < headerLines+1 {
+		t.Errorf("input has %d lines, need at least %d (headerLines=%d + 1 data line)",
+			len(lines), headerLines+1, headerLines)
+	}
+
+	// The first headerLines lines should be the legend (non-selectable)
+	legendLine := lines[0]
+	if !strings.Contains(legendLine, "active") {
+		t.Errorf("first line should be legend, got: %q", legendLine)
+	}
+
+	// Remaining lines should be session data
+	dataLine := lines[headerLines]
+	if !strings.Contains(dataLine, "sess-1") {
+		t.Errorf("data line should contain session name, got: %q", dataLine)
+	}
+}
+
 func TestExtractSessionName(t *testing.T) {
 	tests := []struct {
 		name     string

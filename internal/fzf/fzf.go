@@ -89,12 +89,22 @@ func SelectSession(sessions []*types.SessionStatus) (*types.SessionStatus, error
 	return selection.Session, nil
 }
 
-// SelectSessionWithAction shows FZF interface for session selection with action support
-func SelectSessionWithAction(sessions []*types.SessionStatus) (*SessionSelection, error) {
-	if len(sessions) == 0 {
-		return nil, fmt.Errorf("no sessions found")
-	}
+// sessionHeader returns the keybinding hints for the session list.
+// Must not contain newlines - fzf's argument parser mishandles them
+// in --header values (versions >= 0.36.0), causing "unknown action" errors.
+func sessionHeader() string {
+	return "↑↓ navigate | enter: switch | ctrl-d: delete | ctrl-c: cancel"
+}
 
+// sessionLegend returns the emoji legend for session/Claude state indicators.
+func sessionLegend() string {
+	return "Session: 🟢 active  ⚫ inactive | Claude: 🟢 running  ⏸️ input  💤 idle  ⚠️ error  ⚫ stopped  ❓ unknown"
+}
+
+// buildSessionFZFInput builds the fzf input string with the legend prepended
+// as header lines. Returns the input string and the number of header lines
+// (for use with fzf's --header-lines flag).
+func buildSessionFZFInput(sessions []*types.SessionStatus) (string, int) {
 	// Sort sessions by creation time (newest first)
 	sortedSessions := make([]*types.SessionStatus, len(sessions))
 	copy(sortedSessions, sessions)
@@ -104,21 +114,32 @@ func SelectSessionWithAction(sessions []*types.SessionStatus) (*SessionSelection
 
 	// Format sessions for display with numbering
 	var lines []string
+	lines = append(lines, sessionLegend())
 	for idx, sess := range sortedSessions {
 		line := formatSessionLine(sess, idx+1, len(sortedSessions))
 		lines = append(lines, line)
 	}
 
+	return strings.Join(lines, "\n"), 1
+}
+
+// SelectSessionWithAction shows FZF interface for session selection with action support
+func SelectSessionWithAction(sessions []*types.SessionStatus) (*SessionSelection, error) {
+	if len(sessions) == 0 {
+		return nil, fmt.Errorf("no sessions found")
+	}
+
+	input, headerLines := buildSessionFZFInput(sessions)
+
 	// Run FZF with action keys
-	header := "↑↓ navigate | enter: switch | ctrl-d: delete | ctrl-c: cancel\n" +
-		"Session: 🟢 active  ⚫ inactive | Claude: 🟢 running  ⏸️ input  💤 idle  ⚠️ error  ⚫ stopped  ❓ unknown"
 	key, selected, err := runFZFWithExpect(
-		strings.Join(lines, "\n"),
+		input,
 		[]string{"ctrl-d"},
 		"--prompt=🚀 Select session > ",
 		"--reverse",
 		"--border=rounded",
-		"--header="+header,
+		"--header="+sessionHeader(),
+		fmt.Sprintf("--header-lines=%d", headerLines),
 		"--height=80%",
 	)
 	if err != nil {
