@@ -27,6 +27,9 @@ It helps you quickly create development environments for your repositories.`,
 		renameCmd(),
 		diagnoseCmd(),
 		refreshCmd(),
+		hookHandlerCmd(),
+		setupHooksCmd(),
+		removeHooksCmd(),
 	)
 
 	if err := rootCmd.ExecuteContext(ctx); err != nil {
