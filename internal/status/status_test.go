@@ -110,8 +110,8 @@ func TestEmojiForState(t *testing.T) {
 		{types.ClaudeStateIdle, "\U0001f4ac"},
 		{types.ClaudeStateStopped, "\u26ab"},
 		{types.ClaudeStateError, "\u26a0\ufe0f"},
-		{types.ClaudeStateUnknown, "\u2753"},
-		{types.ClaudeState("something-else"), "\u2753"},
+		{types.ClaudeStateUnknown, "\u2754"},
+		{types.ClaudeState("something-else"), "\u2754"},
 	}
 
 	for _, tt := range tests {

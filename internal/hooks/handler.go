@@ -81,7 +81,7 @@ func HandleHookEvent(reader io.Reader) error {
 
 	// Read current state to avoid unnecessary tmux rename
 	current, err := status.ReadState(statusDir, sessionName)
-	if err == nil && current.State == string(state) {
+	if err == nil && current.State == string(state) && current.SessionID == event.SessionID {
 		return nil
 	}
 

@@ -252,7 +252,7 @@ func getClaudeStatusIndicator(state types.ClaudeState) string {
 	case types.ClaudeStateStopped:
 		return "⚫"
 	default:
-		return "❓"
+		return "❔"
 	}
 }
 

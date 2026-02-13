@@ -92,8 +92,10 @@ func EmojiForState(state types.ClaudeState) string {
 		return "\u26ab" // black circle
 	case types.ClaudeStateError:
 		return "\u26a0\ufe0f" // warning sign
+	case types.ClaudeStateUnknown:
+		return "\u2754" // white question mark (unknown)
 	default:
-		return "\u2753" // question mark
+		return "\u2754" // white question mark (unknown)
 	}
 }
 
