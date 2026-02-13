@@ -85,93 +85,170 @@ func TestGetClaudeStatusIndicator(t *testing.T) {
 	}
 }
 
-func TestGetClaudeStateDescription(t *testing.T) {
+func TestGetClaudeStateLabel(t *testing.T) {
 	tests := []struct {
 		name     string
 		state    types.ClaudeState
 		expected string
 	}{
-		{"Running", types.ClaudeStateRunning, "[Claude: Active]"},
-		{"Waiting for input", types.ClaudeStateWaitingForInput, "[Claude: Needs Input]"},
-		{"Idle", types.ClaudeStateIdle, "[Claude: Idle]"},
-		{"Error", types.ClaudeStateError, "[Claude: Error]"},
-		{"Stopped", types.ClaudeStateStopped, "[Claude: Stopped]"},
-		{"Unknown", types.ClaudeStateUnknown, "[Claude: Unknown]"},
+		{"Running", types.ClaudeStateRunning, "Active"},
+		{"Waiting for input", types.ClaudeStateWaitingForInput, "Needs Input"},
+		{"Idle", types.ClaudeStateIdle, "Idle"},
+		{"Error", types.ClaudeStateError, "Error"},
+		{"Stopped", types.ClaudeStateStopped, "Stopped"},
+		{"Unknown", types.ClaudeStateUnknown, "Unknown"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := getClaudeStateDescription(tt.state)
+			result := getClaudeStateLabel(tt.state)
 			if result != tt.expected {
-				t.Errorf("getClaudeStateDescription(%q) = %q, expected %q",
+				t.Errorf("getClaudeStateLabel(%q) = %q, expected %q",
 					tt.state, result, tt.expected)
 			}
 		})
 	}
 }
 
-func TestFormatSessionLine(t *testing.T) {
+func TestFormatSessionTable(t *testing.T) {
+	sessions := []*types.SessionStatus{
+		{
+			Session: &types.Session{
+				Name:      "test-session-1",
+				RepoURL:   "https://github.com/mateimicu/tmux-claude-fleet",
+				CreatedAt: time.Now(),
+			},
+			TmuxActive:  true,
+			ClaudeState: types.ClaudeStateRunning,
+		},
+		{
+			Session: &types.Session{
+				Name:      "local-project",
+				RepoURL:   "/home/user/projects/myorg/myrepo",
+				CreatedAt: time.Now(),
+			},
+			TmuxActive:  false,
+			ClaudeState: types.ClaudeStateStopped,
+		},
+	}
+
+	header, lines := formatSessionTable(sessions)
+
+	// Header should contain column names
+	for _, col := range []string{"#", "TMUX", "SOURCE", "REPOSITORY", "CLAUDE", "SESSION"} {
+		if !strings.Contains(header, col) {
+			t.Errorf("header %q should contain column name %q", header, col)
+		}
+	}
+
+	if len(lines) != 2 {
+		t.Fatalf("expected 2 data lines, got %d", len(lines))
+	}
+
+	// First row: active GitHub session
+	row1 := lines[0]
+	for _, want := range []string{"1", "🟢", "github", "mateimicu/tmux-claude-fleet", "Active", "[test-session-1]"} {
+		if !strings.Contains(row1, want) {
+			t.Errorf("row 1 %q should contain %q", row1, want)
+		}
+	}
+
+	// Second row: inactive local session
+	row2 := lines[1]
+	for _, want := range []string{"2", "⚫", "local", "myorg/myrepo", "Stopped", "[local-project]"} {
+		if !strings.Contains(row2, want) {
+			t.Errorf("row 2 %q should contain %q", row2, want)
+		}
+	}
+}
+
+func TestFormatSessionTableAlignment(t *testing.T) {
+	sessions := []*types.SessionStatus{
+		{
+			Session: &types.Session{
+				Name:      "short",
+				RepoURL:   "https://github.com/a/b",
+				CreatedAt: time.Now(),
+			},
+			TmuxActive:  true,
+			ClaudeState: types.ClaudeStateRunning,
+		},
+		{
+			Session: &types.Session{
+				Name:      "longer-name",
+				RepoURL:   "https://github.com/organization/very-long-repository-name",
+				CreatedAt: time.Now(),
+			},
+			TmuxActive:  false,
+			ClaudeState: types.ClaudeStateWaitingForInput,
+		},
+	}
+
+	header, lines := formatSessionTable(sessions)
+
+	// All lines should have the same display width up to the SESSION column.
+	// The SESSION column is the last one and varies in width, so check that
+	// the prefix before "[" (the session name bracket) has consistent display width.
+	headerPrefixW := displayWidth(header) - displayWidth("SESSION")
+	for i, line := range lines {
+		bracketIdx := strings.LastIndex(line, "[")
+		if bracketIdx < 0 {
+			t.Fatalf("line %d missing session name bracket: %q", i, line)
+		}
+		prefix := line[:bracketIdx]
+		prefixW := displayWidth(prefix)
+		if prefixW != headerPrefixW {
+			t.Errorf("line %d prefix display width = %d, want %d (header width)\nheader: %q\nline:   %q",
+				i, prefixW, headerPrefixW, header, line)
+		}
+	}
+}
+
+func TestDisplayWidth(t *testing.T) {
 	tests := []struct {
-		name          string
-		session       *types.SessionStatus
-		sessionNum    int
-		totalSessions int
-		wantContains  []string
+		name     string
+		input    string
+		expected int
 	}{
-		{
-			name: "GitHub repo, active tmux, Claude running",
-			session: &types.SessionStatus{
-				Session: &types.Session{
-					Name:      "test-session-1",
-					RepoURL:   "https://github.com/mateimicu/tmux-claude-fleet",
-					CreatedAt: time.Now(),
-				},
-				TmuxActive:  true,
-				ClaudeState: types.ClaudeStateRunning,
-			},
-			sessionNum:    1,
-			totalSessions: 10,
-			wantContains:  []string{"🟢", "github:", "mateimicu/tmux-claude-fleet", "01", "[Claude: Active]", "[test-session-1]"},
-		},
-		{
-			name: "Local repo, inactive",
-			session: &types.SessionStatus{
-				Session: &types.Session{
-					Name:      "local-project",
-					RepoURL:   "/home/user/projects/myorg/myrepo",
-					CreatedAt: time.Now(),
-				},
-				TmuxActive:  false,
-				ClaudeState: types.ClaudeStateStopped,
-			},
-			sessionNum:    5,
-			totalSessions: 10,
-			wantContains:  []string{"⚫", "local:", "myorg/myrepo", "05", "[Claude: Stopped]", "[local-project]"},
-		},
-		{
-			name: "Three-digit padding with waiting state",
-			session: &types.SessionStatus{
-				Session: &types.Session{
-					Name:      "project-100",
-					RepoURL:   "git@github.com:user/repo.git",
-					CreatedAt: time.Now(),
-				},
-				TmuxActive:  true,
-				ClaudeState: types.ClaudeStateWaitingForInput,
-			},
-			sessionNum:    1,
-			totalSessions: 150,
-			wantContains:  []string{"🟢", "github:", "user/repo", "001", "⏸️", "[Claude: Needs Input]", "[project-100]"},
-		},
+		{"ASCII", "hello", 5},
+		{"Empty", "", 0},
+		{"Green circle emoji", "🟢", 2},
+		{"Black circle emoji", "⚫", 2},
+		{"Pause with variation selector", "⏸️", 2},
+		{"Warning with variation selector", "⚠️", 2},
+		{"Emoji plus text", "🟢 Active", 9},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := formatSessionLine(tt.session, tt.sessionNum, tt.totalSessions)
-			for _, want := range tt.wantContains {
-				if !strings.Contains(result, want) {
-					t.Errorf("formatSessionLine() = %q, should contain %q", result, want)
-				}
+			result := displayWidth(tt.input)
+			if result != tt.expected {
+				t.Errorf("displayWidth(%q) = %d, want %d", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestPadToDisplayWidth(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		width         int
+		expectedWidth int
+	}{
+		{"Pad ASCII", "hi", 6, 6},
+		{"Pad emoji", "🟢", 4, 4},
+		{"No pad needed", "hello", 3, 5},
+		{"Pad emoji with variation selector", "⏸️", 4, 4},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := padToDisplayWidth(tt.input, tt.width)
+			resultW := displayWidth(result)
+			if resultW != tt.expectedWidth {
+				t.Errorf("padToDisplayWidth(%q, %d) display width = %d, want %d (result=%q)",
+					tt.input, tt.width, resultW, tt.expectedWidth, result)
 			}
 		})
 	}
@@ -262,18 +339,18 @@ func TestExtractSessionName(t *testing.T) {
 		expected string
 	}{
 		{
-			name:     "Extract from GitHub session with Claude state",
-			line:     "🟢 github: mateimicu/tmux-claude-fleet - 01 🟢 [Claude: Active] [test-session-1]",
+			name:     "Extract from table row with active session",
+			line:     " 01  🟢  github  mateimicu/tmux-claude-fleet  🟢 Active       [test-session-1]",
 			expected: "test-session-1",
 		},
 		{
-			name:     "Extract from local session",
-			line:     "⚫ local: myorg/myrepo - 05 ⚫ [Claude: Stopped] [local-project]",
+			name:     "Extract from table row with inactive session",
+			line:     " 05  ⚫  local   myorg/myrepo                 ⚫ Stopped       [local-project]",
 			expected: "local-project",
 		},
 		{
-			name:     "Extract with waiting state",
-			line:     "🟢 github: user/repo - 001 ⏸️ [Claude: Needs Input] [my-session]",
+			name:     "Extract from table row with waiting state",
+			line:     " 001  🟢  github  user/repo                   ⏸️ Needs Input  [my-session]",
 			expected: "my-session",
 		},
 	}

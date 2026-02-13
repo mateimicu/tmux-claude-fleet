@@ -102,23 +102,23 @@ func SelectSessionWithAction(sessions []*types.SessionStatus) (*SessionSelection
 		return sortedSessions[i].Session.CreatedAt.After(sortedSessions[j].Session.CreatedAt)
 	})
 
-	// Format sessions for display with numbering
-	var lines []string
-	for idx, sess := range sortedSessions {
-		line := formatSessionLine(sess, idx+1, len(sortedSessions))
-		lines = append(lines, line)
-	}
+	// Format sessions as aligned table
+	headerLine, lines := formatSessionTable(sortedSessions)
+
+	// Prepend header line so FZF can freeze it with --header-lines=1
+	allLines := append([]string{headerLine}, lines...)
 
 	// Run FZF with action keys
-	header := "↑↓ navigate | enter: switch | ctrl-d: delete | ctrl-c: cancel\n" +
+	legend := "↑↓ navigate | enter: switch | ctrl-d: delete | ctrl-c: cancel\n" +
 		"Session: 🟢 active  ⚫ inactive | Claude: 🟢 running  ⏸️ input  💤 idle  ⚠️ error  ⚫ stopped  ❓ unknown"
 	key, selected, err := runFZFWithExpect(
-		strings.Join(lines, "\n"),
+		strings.Join(allLines, "\n"),
 		[]string{"ctrl-d"},
 		"--prompt=🚀 Select session > ",
 		"--reverse",
 		"--border=rounded",
-		"--header="+header,
+		"--header="+legend,
+		"--header-lines=1",
 		"--height=80%",
 	)
 	if err != nil {
@@ -155,26 +155,87 @@ func formatRepoLine(r *types.Repository) string {
 	return fmt.Sprintf("%s: %s [%s]", r.Source, r.Name, r.URL)
 }
 
-func formatSessionLine(s *types.SessionStatus, sessionNum, totalSessions int) string {
-	// Tmux session status
-	status := "⚫"
-	if s.TmuxActive {
-		status = "🟢"
+// formatSessionTable formats all sessions as an aligned table.
+// Returns a header line and data lines with columns padded to align.
+func formatSessionTable(sessions []*types.SessionStatus) (string, []string) {
+	paddingWidth := len(fmt.Sprintf("%d", len(sessions)))
+	if paddingWidth < 1 {
+		paddingWidth = 1
 	}
 
-	// Claude state with detailed indicators
-	claudeStatus := getClaudeStatusIndicator(s.ClaudeState)
-	claudeDesc := getClaudeStateDescription(s.ClaudeState)
+	type rowData struct {
+		num     string
+		tmux    string
+		source  string
+		repo    string
+		claude  string
+		session string
+	}
 
-	// Parse repo URL to get source and org/repo
-	source, orgRepo := parseRepoURL(s.Session.RepoURL)
+	// Pre-compute row data and track max column widths
+	var rows []rowData
+	maxSourceW := displayWidth("SOURCE")
+	maxRepoW := displayWidth("REPOSITORY")
+	maxClaudeW := displayWidth("CLAUDE")
 
-	// Calculate padding width based on total sessions
-	paddingWidth := len(fmt.Sprintf("%d", totalSessions))
-	sessionNumStr := fmt.Sprintf("%0*d", paddingWidth, sessionNum)
+	for idx, s := range sessions {
+		source, orgRepo := parseRepoURL(s.Session.RepoURL)
+		claudeIndicator := getClaudeStatusIndicator(s.ClaudeState)
+		claudeLabel := getClaudeStateLabel(s.ClaudeState)
 
-	return fmt.Sprintf("%s %s: %s - %s %s %s [%s]",
-		status, source, orgRepo, sessionNumStr, claudeStatus, claudeDesc, s.Session.Name)
+		tmux := "⚫"
+		if s.TmuxActive {
+			tmux = "🟢"
+		}
+
+		claudeCol := claudeIndicator + " " + claudeLabel
+
+		row := rowData{
+			num:     fmt.Sprintf("%0*d", paddingWidth, idx+1),
+			tmux:    tmux,
+			source:  source,
+			repo:    orgRepo,
+			claude:  claudeCol,
+			session: s.Session.Name,
+		}
+		rows = append(rows, row)
+
+		if w := displayWidth(source); w > maxSourceW {
+			maxSourceW = w
+		}
+		if w := displayWidth(orgRepo); w > maxRepoW {
+			maxRepoW = w
+		}
+		if w := displayWidth(claudeCol); w > maxClaudeW {
+			maxClaudeW = w
+		}
+	}
+
+	// Build header
+	header := fmt.Sprintf(" %s  %s  %s  %s  %s  %s",
+		padToDisplayWidth("#", paddingWidth),
+		padToDisplayWidth("TMUX", 4),
+		padToDisplayWidth("SOURCE", maxSourceW),
+		padToDisplayWidth("REPOSITORY", maxRepoW),
+		padToDisplayWidth("CLAUDE", maxClaudeW),
+		"SESSION",
+	)
+
+	// Build data lines
+	var lines []string
+	for _, r := range rows {
+		line := fmt.Sprintf(" %s  %s  %s  %s  %s  [%s]",
+			r.num,
+			padToDisplayWidth(r.tmux, 4),
+			padToDisplayWidth(r.source, maxSourceW),
+			padToDisplayWidth(r.repo, maxRepoW),
+			padToDisplayWidth(r.claude, maxClaudeW),
+			r.session,
+		)
+		lines = append(lines, line)
+	}
+
+	return header, lines
 }
 
 // getClaudeStatusIndicator returns the emoji indicator for Claude state
@@ -195,22 +256,56 @@ func getClaudeStatusIndicator(state types.ClaudeState) string {
 	}
 }
 
-// getClaudeStateDescription returns a human-readable description
-func getClaudeStateDescription(state types.ClaudeState) string {
+// getClaudeStateLabel returns a short label for the Claude state
+func getClaudeStateLabel(state types.ClaudeState) string {
 	switch state {
 	case types.ClaudeStateRunning:
-		return "[Claude: Active]"
+		return "Active"
 	case types.ClaudeStateWaitingForInput:
-		return "[Claude: Needs Input]"
+		return "Needs Input"
 	case types.ClaudeStateIdle:
-		return "[Claude: Idle]"
+		return "Idle"
 	case types.ClaudeStateError:
-		return "[Claude: Error]"
+		return "Error"
 	case types.ClaudeStateStopped:
-		return "[Claude: Stopped]"
+		return "Stopped"
 	default:
-		return "[Claude: Unknown]"
+		return "Unknown"
 	}
+}
+
+// displayWidth returns the display width of a string, accounting for
+// wide characters like emojis that take 2 terminal cells.
+func displayWidth(s string) int {
+	w := 0
+	for _, r := range s {
+		if r == 0xFE0F { // variation selector-16, zero-width
+			continue
+		}
+		if isWideRune(r) {
+			w += 2
+		} else {
+			w++
+		}
+	}
+	return w
+}
+
+// isWideRune returns true if the rune occupies 2 terminal cells.
+func isWideRune(r rune) bool {
+	return (r >= 0x1F300 && r <= 0x1F9FF) || // Misc Symbols, Emoticons, Transport, etc.
+		(r >= 0x2600 && r <= 0x27BF) || // Misc Symbols & Dingbats
+		(r >= 0x2300 && r <= 0x23FF) || // Misc Technical
+		(r >= 0x2B50 && r <= 0x2B55) // Stars
+}
+
+// padToDisplayWidth pads a string with spaces to reach the target display width.
+func padToDisplayWidth(s string, width int) string {
+	dw := displayWidth(s)
+	if dw >= width {
+		return s
+	}
+	return s + strings.Repeat(" ", width-dw)
 }
 
 func runFZF(input string, args ...string) (string, error) {
