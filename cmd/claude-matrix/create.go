@@ -45,7 +45,7 @@ func runCreate(ctx context.Context) error {
 	}
 
 	if cfg.GitHubEnabled {
-		token, source := repos.GetGitHubToken()
+		token, source := repos.GetGitHubToken(ctx)
 		if token == "" {
 			fmt.Println("⚠️  GitHub authentication not found, skipping GitHub repositories")
 			fmt.Println("   To enable GitHub integration:")
@@ -72,7 +72,10 @@ func runCreate(ctx context.Context) error {
 	discoverer := repos.NewDiscoverer(sources...)
 	fmt.Println("🔍 Discovering repositories...")
 
-	repoList, err := discoverer.ListAll(ctx)
+	discoveryCtx, discoveryCancel := context.WithTimeout(ctx, 15*time.Second)
+	defer discoveryCancel()
+
+	repoList, err := discoverer.ListAll(discoveryCtx)
 	if err != nil {
 		return fmt.Errorf("failed to discover repositories: %w", err)
 	}

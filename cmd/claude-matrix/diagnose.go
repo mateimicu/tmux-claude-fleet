@@ -84,7 +84,7 @@ func runDiagnose(ctx context.Context) error {
 	fmt.Printf("  Enabled: %v\n", cfg.GitHubEnabled)
 
 	if cfg.GitHubEnabled {
-		token, source := repos.GetGitHubToken()
+		token, source := repos.GetGitHubToken(ctx)
 		if token == "" {
 			fmt.Println("  Status: ❌ No GitHub authentication found")
 			fmt.Println()
@@ -142,7 +142,7 @@ func runDiagnose(ctx context.Context) error {
 	if cfg.LocalConfigEnabled && cfg.LocalReposFile != "" {
 		sources = append(sources, repos.NewLocalSource(cfg.LocalReposFile))
 	}
-	token, _ := repos.GetGitHubToken()
+	token, _ := repos.GetGitHubToken(ctx)
 	if cfg.GitHubEnabled && token != "" {
 		sources = append(sources, repos.NewGitHubSource(token, cfg.CacheDir, cfg.CacheTTL, cfg.GitHubOrgs))
 	}
