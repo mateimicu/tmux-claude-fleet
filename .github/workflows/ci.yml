@@ -11,7 +11,7 @@ jobs:
     name: Test
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubicloud-standard-2, macos-latest]
         go-version: ['1.21', '1.22', '1.23']
     runs-on: ${{ matrix.os }}
 
@@ -44,7 +44,7 @@ jobs:
         run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
 
       - name: Upload coverage to Codecov
-        if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.23'
+        if: matrix.os == 'ubicloud-standard-2' && matrix.go-version == '1.23'
         uses: codecov/codecov-action@v5
         with:
           files: ./coverage.out
@@ -54,7 +54,7 @@ jobs:
 
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     needs: test
 
     steps:
@@ -81,7 +81,7 @@ jobs:
 
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
 
     steps:
       - name: Checkout code
@@ -100,7 +100,7 @@ jobs:
 
   cross-compile:
     name: Cross-Compile
-    runs-on: ubuntu-latest
+    runs-on: ubicloud-standard-2
     needs: test
 
     steps:
