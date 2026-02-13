@@ -54,9 +54,9 @@ use_popup=$(get_tmux_option "@claude-matrix-use-popup" "true")
 
 # Bind keys using popup or new-window
 if [ "$use_popup" = "true" ]; then
-    tmux bind-key "$create_key" display-popup -E "$BINARY create"
-    tmux bind-key "$list_key" display-popup -E "$BINARY list"
-    tmux bind-key "$delete_key" display-popup -E "$BINARY delete"
+    tmux bind-key "$create_key" display-popup -w 80% -h 80% -E "$BINARY create"
+    tmux bind-key "$list_key" display-popup -w 80% -h 80% -E "$BINARY list"
+    tmux bind-key "$delete_key" display-popup -w 80% -h 80% -E "$BINARY delete"
 else
     tmux bind-key "$create_key" new-window "$BINARY create"
     tmux bind-key "$list_key" new-window "$BINARY list"
