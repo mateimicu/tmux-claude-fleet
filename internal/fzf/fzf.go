@@ -323,12 +323,22 @@ func runFZF(input string, args ...string) (string, error) {
 	return strings.TrimSpace(out.String()), nil
 }
 
-// runFZFWithExpect runs FZF with --expect to capture key presses
-// Returns the key pressed and the selected line
+// runFZFWithExpect runs FZF with key bindings to capture special key presses.
+// It uses --bind with println+accept instead of --expect to reliably override
+// FZF's default key bindings (e.g., ctrl-d's default delete-char/eof action)
+// and any user configuration in FZF_DEFAULT_OPTS.
+// Returns the key pressed and the selected line.
 func runFZFWithExpect(input string, expectedKeys []string, args ...string) (string, string, error) {
-	// Add --expect flag with keys
-	expectArg := "--expect=" + strings.Join(expectedKeys, ",")
-	allArgs := append([]string{expectArg}, args...)
+	// Build --bind args for each expected key.
+	// Using --bind instead of --expect because --expect=ctrl-d can conflict
+	// with FZF's built-in ctrl-d binding (delete-char/eof) or user's
+	// FZF_DEFAULT_OPTS, causing the wrong item to be returned.
+	// --bind explicitly overrides any previous binding for the key.
+	var allArgs []string
+	for _, key := range expectedKeys {
+		allArgs = append(allArgs, fmt.Sprintf("--bind=%s:println(%s)+accept", key, key))
+	}
+	allArgs = append(allArgs, args...)
 
 	cmd := exec.Command("fzf", allArgs...)
 	cmd.Stdin = strings.NewReader(input)
@@ -337,27 +347,52 @@ func runFZFWithExpect(input string, expectedKeys []string, args ...string) (stri
 	cmd.Stdout = &out
 	cmd.Stderr = os.Stderr
 
+	// Filter out FZF_DEFAULT_OPTS to prevent user configuration from
+	// interfering with our key bindings
+	cmd.Env = filterFZFEnv(os.Environ())
+
 	if err := cmd.Run(); err != nil {
 		return "", "", err
 	}
 
-	// Output format with --expect:
-	// Line 1: key pressed (empty if Enter)
-	// Line 2: selected item
-	output := strings.TrimSpace(out.String())
-	lines := strings.SplitN(output, "\n", 2)
+	return parseFZFOutput(out.String(), expectedKeys)
+}
 
-	if len(lines) == 0 {
+// parseFZFOutput parses FZF output to extract the key pressed and selected line.
+// When an expected key is pressed (via --bind println+accept): key\nselected\n
+// When Enter is pressed: selected\n
+func parseFZFOutput(output string, expectedKeys []string) (string, string, error) {
+	if strings.TrimSpace(output) == "" {
 		return "", "", fmt.Errorf("no output from fzf")
 	}
 
-	if len(lines) == 1 {
-		// Only one line means Enter was pressed
-		return "", lines[0], nil
+	// Split on first newline to separate potential key from selection
+	parts := strings.SplitN(output, "\n", 2)
+
+	if len(parts) >= 2 {
+		potentialKey := strings.TrimSpace(parts[0])
+		for _, key := range expectedKeys {
+			if potentialKey == key {
+				return key, strings.TrimSpace(parts[1]), nil
+			}
+		}
 	}
 
-	// Two lines: first is key, second is selection
-	return lines[0], lines[1], nil
+	// No expected key matched - Enter was pressed
+	return "", strings.TrimSpace(output), nil
+}
+
+// filterFZFEnv removes FZF configuration environment variables that could
+// interfere with our key bindings
+func filterFZFEnv(env []string) []string {
+	filtered := make([]string, 0, len(env))
+	for _, e := range env {
+		if !strings.HasPrefix(e, "FZF_DEFAULT_OPTS=") &&
+			!strings.HasPrefix(e, "FZF_DEFAULT_OPTS_FILE=") {
+			filtered = append(filtered, e)
+		}
+	}
+	return filtered
 }
 
 func extractURL(line string) string {
