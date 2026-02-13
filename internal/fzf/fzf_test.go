@@ -177,6 +177,108 @@ func TestFormatSessionLine(t *testing.T) {
 	}
 }
 
+func TestParseFZFOutput(t *testing.T) {
+	expectedKeys := []string{"ctrl-d"}
+
+	tests := []struct {
+		name         string
+		output       string
+		expectedKeys []string
+		wantKey      string
+		wantSelected string
+		wantErr      bool
+	}{
+		{
+			name:         "Enter pressed - returns selection without key",
+			output:       "🟢 github: org/repo - 01 🟢 [Claude: Active] [my-session]\n",
+			expectedKeys: expectedKeys,
+			wantKey:      "",
+			wantSelected: "🟢 github: org/repo - 01 🟢 [Claude: Active] [my-session]",
+		},
+		{
+			name:         "ctrl-d pressed - returns key and selection",
+			output:       "ctrl-d\n🟢 github: org/repo - 01 🟢 [Claude: Active] [my-session]\n",
+			expectedKeys: expectedKeys,
+			wantKey:      "ctrl-d",
+			wantSelected: "🟢 github: org/repo - 01 🟢 [Claude: Active] [my-session]",
+		},
+		{
+			name:         "ctrl-d pressed without trailing newline",
+			output:       "ctrl-d\n🟢 github: org/repo - 01 🟢 [Claude: Active] [my-session]",
+			expectedKeys: expectedKeys,
+			wantKey:      "ctrl-d",
+			wantSelected: "🟢 github: org/repo - 01 🟢 [Claude: Active] [my-session]",
+		},
+		{
+			name:         "Empty output returns error",
+			output:       "",
+			expectedKeys: expectedKeys,
+			wantErr:      true,
+		},
+		{
+			name:         "Whitespace only output returns error",
+			output:       "  \n\n  ",
+			expectedKeys: expectedKeys,
+			wantErr:      true,
+		},
+		{
+			name:         "ctrl-d with empty selection",
+			output:       "ctrl-d\n\n",
+			expectedKeys: expectedKeys,
+			wantKey:      "ctrl-d",
+			wantSelected: "",
+		},
+		{
+			name:         "Selection line starting with key name is not confused as key",
+			output:       "ctrl-d-session-name\n",
+			expectedKeys: expectedKeys,
+			wantKey:      "",
+			wantSelected: "ctrl-d-session-name",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			key, selected, err := parseFZFOutput(tt.output, tt.expectedKeys)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseFZFOutput() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil {
+				return
+			}
+			if key != tt.wantKey {
+				t.Errorf("parseFZFOutput() key = %q, want %q", key, tt.wantKey)
+			}
+			if selected != tt.wantSelected {
+				t.Errorf("parseFZFOutput() selected = %q, want %q", selected, tt.wantSelected)
+			}
+		})
+	}
+}
+
+func TestFilterFZFEnv(t *testing.T) {
+	env := []string{
+		"HOME=/home/user",
+		"FZF_DEFAULT_OPTS=--bind ctrl-d:delete-char",
+		"PATH=/usr/bin:/bin",
+		"FZF_DEFAULT_OPTS_FILE=/home/user/.fzfrc",
+		"SHELL=/bin/bash",
+	}
+
+	filtered := filterFZFEnv(env)
+
+	for _, e := range filtered {
+		if strings.HasPrefix(e, "FZF_DEFAULT_OPTS=") || strings.HasPrefix(e, "FZF_DEFAULT_OPTS_FILE=") {
+			t.Errorf("filterFZFEnv() should have removed %q", e)
+		}
+	}
+
+	if len(filtered) != 3 {
+		t.Errorf("filterFZFEnv() returned %d items, want 3", len(filtered))
+	}
+}
+
 func TestExtractSessionName(t *testing.T) {
 	tests := []struct {
 		name     string
