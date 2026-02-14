@@ -79,6 +79,27 @@ func (m *Manager) SwitchToSession(name string) error {
 	return cmd.Run()
 }
 
+// SetSessionEnv sets a session-level environment variable
+func (m *Manager) SetSessionEnv(session, key, value string) error {
+	cmd := exec.Command("tmux", "set-environment", "-t", session, key, value)
+	return cmd.Run()
+}
+
+// GetSessionEnv gets a session-level environment variable
+func (m *Manager) GetSessionEnv(session, key string) (string, error) {
+	cmd := exec.Command("tmux", "show-environment", "-t", session, key)
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	// Output format: "KEY=VALUE\n"
+	line := strings.TrimSpace(string(output))
+	if _, value, ok := strings.Cut(line, "="); ok {
+		return value, nil
+	}
+	return "", fmt.Errorf("unexpected format: %s", line)
+}
+
 // GetClaudeStatus checks if Claude is running in session
 func (m *Manager) GetClaudeStatus(session string) bool {
 	// Get pane PIDs from the first window

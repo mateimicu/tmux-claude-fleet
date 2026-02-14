@@ -136,9 +136,13 @@ func createRepoSession(cfg *types.Config, selected *types.Repository, sessionMgr
 		return fmt.Errorf("failed to create tmux session: %w", err)
 	}
 
+	// Generate title from display name (org/repo format)
+	title := sessionMgr.GenerateTitle(selected.Name)
+
 	sess := &types.Session{
 		Name:      sessionName,
 		RepoURL:   selected.URL,
+		Title:     title,
 		ClonePath: clonePath,
 		CreatedAt: time.Now(),
 	}
@@ -146,7 +150,12 @@ func createRepoSession(cfg *types.Config, selected *types.Repository, sessionMgr
 		fmt.Printf("⚠️  Failed to save session metadata: %v\n", err)
 	}
 
-	fmt.Println("✓ Session created successfully!")
+	// Set tmux session env var for status bar display
+	if err := tmuxMgr.SetSessionEnv(sessionName, "@claude-matrix-title", title); err != nil {
+		fmt.Printf("⚠️  Failed to set session title env: %v\n", err)
+	}
+
+	fmt.Printf("✓ Session created: %s\n", title)
 
 	if err := tmuxMgr.SwitchToSession(sessionName); err != nil {
 		fmt.Printf("⚠️  Failed to switch to session: %v\n", err)
@@ -196,9 +205,13 @@ func createWorkspaceSession(cfg *types.Config, selected *types.Repository, sessi
 		return fmt.Errorf("failed to create tmux session: %w", err)
 	}
 
+	// Generate title for workspace
+	wsTitle := sessionMgr.GenerateTitle(selected.Name)
+
 	sess := &types.Session{
 		Name:      sessionName,
 		RepoURL:   "workspace:" + selected.Name,
+		Title:     wsTitle,
 		RepoURLs:  selected.WorkspaceRepos,
 		ClonePath: workspacePath,
 		CreatedAt: time.Now(),
@@ -207,7 +220,12 @@ func createWorkspaceSession(cfg *types.Config, selected *types.Repository, sessi
 		fmt.Printf("⚠️  Failed to save session metadata: %v\n", err)
 	}
 
-	fmt.Println("✓ Workspace session created successfully!")
+	// Set tmux session env var for status bar display
+	if err := tmuxMgr.SetSessionEnv(sessionName, "@claude-matrix-title", wsTitle); err != nil {
+		fmt.Printf("⚠️  Failed to set session title env: %v\n", err)
+	}
+
+	fmt.Printf("✓ Workspace session created: %s\n", wsTitle)
 
 	if err := tmuxMgr.SwitchToSession(sessionName); err != nil {
 		fmt.Printf("⚠️  Failed to switch to session: %v\n", err)

@@ -162,6 +162,42 @@ func TestFormatSessionTable(t *testing.T) {
 	}
 }
 
+func TestFormatSessionTableWithTitle(t *testing.T) {
+	sessions := []*types.SessionStatus{
+		{
+			Session: &types.Session{
+				Name:      "test-session-1",
+				Title:     "mateimicu/tmux-claude-fleet #1",
+				RepoURL:   "https://github.com/mateimicu/tmux-claude-fleet",
+				CreatedAt: time.Now(),
+			},
+			TmuxActive:  true,
+			ClaudeState: types.ClaudeStateRunning,
+		},
+		{
+			Session: &types.Session{
+				Name:      "local-project",
+				RepoURL:   "/home/user/projects/myorg/myrepo",
+				CreatedAt: time.Now(),
+			},
+			TmuxActive:  false,
+			ClaudeState: types.ClaudeStateStopped,
+		},
+	}
+
+	_, lines := formatSessionTable(sessions)
+
+	// First row should show title instead of orgRepo
+	if !strings.Contains(lines[0], "mateimicu/tmux-claude-fleet #1") {
+		t.Errorf("row with title should display title, got %q", lines[0])
+	}
+
+	// Second row has no title, should fall back to orgRepo
+	if !strings.Contains(lines[1], "myorg/myrepo") {
+		t.Errorf("row without title should fall back to orgRepo, got %q", lines[1])
+	}
+}
+
 func TestFormatSessionTableAlignment(t *testing.T) {
 	sessions := []*types.SessionStatus{
 		{

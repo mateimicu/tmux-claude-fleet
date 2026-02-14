@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -157,7 +158,9 @@ func runDiagnose(ctx context.Context) error {
 		fmt.Println("    2. Or set GITHUB_TOKEN: ./setup-github.sh")
 	} else {
 		discoverer := repos.NewDiscoverer(sources...)
-		allRepos, err := discoverer.ListAll(ctx)
+		discoveryCtx, discoveryCancel := context.WithTimeout(ctx, 15*time.Second)
+		defer discoveryCancel()
+		allRepos, err := discoverer.ListAll(discoveryCtx)
 		if err != nil {
 			fmt.Printf("  Error discovering repos: %v\n", err)
 		} else {

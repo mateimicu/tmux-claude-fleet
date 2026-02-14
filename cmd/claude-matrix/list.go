@@ -163,6 +163,13 @@ func handleSwitchAction(cfg *types.Config, tmuxMgr *tmux.Manager, selected *type
 		}
 	}
 
+	// Set title env var so the status bar picks it up
+	if selected.Session.Title != "" {
+		if err := tmuxMgr.SetSessionEnv(selected.Session.Name, "@claude-matrix-title", selected.Session.Title); err != nil {
+			fmt.Printf("⚠️  Failed to set session title: %v\n", err)
+		}
+	}
+
 	if err := tmuxMgr.SwitchToSession(selected.Session.Name); err != nil {
 		fmt.Printf("⚠️  Failed to switch to session: %v\n", err)
 		fmt.Printf("You can attach manually with: tmux attach -t %s\n", selected.Session.Name)

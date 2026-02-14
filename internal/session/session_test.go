@@ -2,6 +2,7 @@ package session
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -22,6 +23,7 @@ func TestSessionManager(t *testing.T) {
 	t.Run("SaveAndLoad", func(t *testing.T) {
 		sess := &types.Session{
 			Name:      "test-session",
+			Title:     "test/repo #1",
 			RepoURL:   "https://github.com/test/repo",
 			ClonePath: "/tmp/test",
 			CreatedAt: time.Now(),
@@ -38,6 +40,9 @@ func TestSessionManager(t *testing.T) {
 
 		if loaded.Name != sess.Name {
 			t.Errorf("Name mismatch: got %q, want %q", loaded.Name, sess.Name)
+		}
+		if loaded.Title != sess.Title {
+			t.Errorf("Title mismatch: got %q, want %q", loaded.Title, sess.Title)
 		}
 		if loaded.RepoURL != sess.RepoURL {
 			t.Errorf("RepoURL mismatch: got %q, want %q", loaded.RepoURL, sess.RepoURL)
@@ -116,6 +121,146 @@ func TestGenerateUniqueName(t *testing.T) {
 			t.Errorf("Names should be unique: %q == %q", name1, name2)
 		}
 	})
+}
+
+func TestGenerateTitle(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "session-test-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	mgr := NewManager(tmpDir)
+
+	t.Run("FirstSessionForRepo", func(t *testing.T) {
+		title := mgr.GenerateTitle("mateimicu/tmux-claude-matrix")
+		if title != "mateimicu/tmux-claude-matrix #1" {
+			t.Errorf("expected %q, got %q", "mateimicu/tmux-claude-matrix #1", title)
+		}
+	})
+
+	t.Run("SubsequentSessionsIncrement", func(t *testing.T) {
+		// Save a session with the same repo URL
+		sess := &types.Session{
+			Name:      "session-1",
+			Title:     "mateimicu/tmux-claude-matrix #1",
+			RepoURL:   "https://github.com/mateimicu/tmux-claude-matrix",
+			ClonePath: "/tmp/test1",
+			CreatedAt: time.Now(),
+		}
+		if err := mgr.Save(sess); err != nil {
+			t.Fatalf("Save failed: %v", err)
+		}
+
+		title := mgr.GenerateTitle("mateimicu/tmux-claude-matrix")
+		if title != "mateimicu/tmux-claude-matrix #2" {
+			t.Errorf("expected %q, got %q", "mateimicu/tmux-claude-matrix #2", title)
+		}
+
+		// Save another and check #3
+		sess2 := &types.Session{
+			Name:      "session-2",
+			Title:     "mateimicu/tmux-claude-matrix #2",
+			RepoURL:   "https://github.com/mateimicu/tmux-claude-matrix",
+			ClonePath: "/tmp/test2",
+			CreatedAt: time.Now(),
+		}
+		if err := mgr.Save(sess2); err != nil {
+			t.Fatalf("Save failed: %v", err)
+		}
+
+		title = mgr.GenerateTitle("mateimicu/tmux-claude-matrix")
+		if title != "mateimicu/tmux-claude-matrix #3" {
+			t.Errorf("expected %q, got %q", "mateimicu/tmux-claude-matrix #3", title)
+		}
+	})
+
+	t.Run("DifferentRepoStartsAtOne", func(t *testing.T) {
+		title := mgr.GenerateTitle("other/repo")
+		if title != "other/repo #1" {
+			t.Errorf("expected %q, got %q", "other/repo #1", title)
+		}
+	})
+}
+
+func TestBackwardCompatibility_MissingTitle(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "session-compat-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Write a session JSON in the old format (no title field)
+	oldJSON := `{
+  "created_at": "2025-01-01T00:00:00Z",
+  "name": "old-session",
+  "repo_url": "https://github.com/test/repo",
+  "clone_path": "/tmp/old"
+}`
+	if err := os.MkdirAll(tmpDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "old-session.json"), []byte(oldJSON), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	mgr := NewManager(tmpDir)
+	sess, err := mgr.Load("old-session")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	if sess.Title != "" {
+		t.Errorf("expected empty title for old session, got %q", sess.Title)
+	}
+	if sess.Name != "old-session" {
+		t.Errorf("expected name %q, got %q", "old-session", sess.Name)
+	}
+}
+
+func TestRenameFlow(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "session-rename-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	mgr := NewManager(tmpDir)
+
+	// Create a session with auto-generated title
+	sess := &types.Session{
+		Name:      "my-session",
+		Title:     "org/repo #1",
+		RepoURL:   "https://github.com/org/repo",
+		ClonePath: "/tmp/test",
+		CreatedAt: time.Now(),
+	}
+	if err := mgr.Save(sess); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
+
+	// Simulate rename: load, change title, save
+	loaded, err := mgr.Load("my-session")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	loaded.Title = "my custom title"
+	if err := mgr.Save(loaded); err != nil {
+		t.Fatalf("Save after rename failed: %v", err)
+	}
+
+	// Verify the rename persisted
+	reloaded, err := mgr.Load("my-session")
+	if err != nil {
+		t.Fatalf("Reload failed: %v", err)
+	}
+	if reloaded.Title != "my custom title" {
+		t.Errorf("expected title %q, got %q", "my custom title", reloaded.Title)
+	}
+	// Other fields should remain unchanged
+	if reloaded.RepoURL != sess.RepoURL {
+		t.Errorf("RepoURL should not change: got %q, want %q", reloaded.RepoURL, sess.RepoURL)
+	}
 }
 
 func TestSanitizeName(t *testing.T) {
