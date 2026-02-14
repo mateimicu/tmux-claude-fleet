@@ -49,16 +49,16 @@ func WriteState(statusDir, sessionName string, state types.ClaudeState, claudeSe
 	tmpPath := tmpFile.Name()
 
 	if _, err := tmpFile.Write(data); err != nil {
-		tmpFile.Close()
-		os.Remove(tmpPath)
+		tmpFile.Close()    //nolint:errcheck // Best-effort cleanup on write failure
+		os.Remove(tmpPath) //nolint:errcheck // Best-effort cleanup on write failure
 		return err
 	}
 	if err := tmpFile.Close(); err != nil {
-		os.Remove(tmpPath)
+		os.Remove(tmpPath) //nolint:errcheck // Best-effort cleanup on close failure
 		return err
 	}
 	if err := os.Rename(tmpPath, target); err != nil {
-		os.Remove(tmpPath)
+		os.Remove(tmpPath) //nolint:errcheck // Best-effort cleanup on rename failure
 		return err
 	}
 	return nil
