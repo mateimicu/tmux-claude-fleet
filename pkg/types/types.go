@@ -16,6 +16,7 @@ type Repository struct {
 type Session struct {
 	CreatedAt time.Time `json:"created_at"`
 	Name      string    `json:"name"`
+	Title     string    `json:"title"`
 	RepoURL   string    `json:"repo_url"`
 	ClonePath string    `json:"clone_path"`
 	RepoURLs  []string  `json:"repo_urls,omitempty"` // Multiple repos for workspaces

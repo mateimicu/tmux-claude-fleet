@@ -71,3 +71,7 @@ if [ "$needs_build" = true ]; then
 else
     tmux display-message "claude-matrix: Plugin loaded (Go version)"
 fi
+
+# Session titles: each session sets @claude-matrix-title as a session-level
+# environment variable. Add #{@claude-matrix-title} to status-right or
+# status-left to display the current session's title in the tmux status bar.

@@ -88,6 +88,22 @@ func (m *Manager) Exists(name string) bool {
 	return err == nil
 }
 
+// GenerateTitle creates a title in "org/repo #N" format by counting
+// existing sessions whose title starts with the same display name.
+func (m *Manager) GenerateTitle(displayName string) string {
+	count := 0
+	sessions, err := m.List()
+	if err == nil {
+		prefix := displayName + " #"
+		for _, s := range sessions {
+			if strings.HasPrefix(s.Title, prefix) {
+				count++
+			}
+		}
+	}
+	return fmt.Sprintf("%s #%d", displayName, count+1)
+}
+
 // GenerateUniqueName creates a unique session name
 func (m *Manager) GenerateUniqueName(base string) (string, error) {
 	name := sanitizeName(base)

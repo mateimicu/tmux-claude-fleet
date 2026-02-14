@@ -188,13 +188,19 @@ func formatSessionTable(sessions []*types.SessionStatus) (string, []string) {
 			tmux = "🟢"
 		}
 
+		// Use title if available, otherwise fall back to orgRepo
+		displayName := orgRepo
+		if s.Session.Title != "" {
+			displayName = s.Session.Title
+		}
+
 		claudeCol := claudeIndicator + " " + claudeLabel
 
 		row := rowData{
 			num:     fmt.Sprintf("%0*d", paddingWidth, idx+1),
 			tmux:    tmux,
 			source:  source,
-			repo:    orgRepo,
+			repo:    displayName,
 			claude:  claudeCol,
 			session: s.Session.Name,
 		}
@@ -203,7 +209,7 @@ func formatSessionTable(sessions []*types.SessionStatus) (string, []string) {
 		if w := displayWidth(source); w > maxSourceW {
 			maxSourceW = w
 		}
-		if w := displayWidth(orgRepo); w > maxRepoW {
+		if w := displayWidth(displayName); w > maxRepoW {
 			maxRepoW = w
 		}
 		if w := displayWidth(claudeCol); w > maxClaudeW {
