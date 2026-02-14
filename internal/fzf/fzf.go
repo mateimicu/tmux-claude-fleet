@@ -110,7 +110,7 @@ func SelectSessionWithAction(sessions []*types.SessionStatus) (*SessionSelection
 
 	// Run FZF with action keys
 	legend := "↑↓ navigate | enter: switch | ctrl-d: delete | ctrl-c: cancel\n" +
-		"Session: 🟢 active  ⚫ inactive | Claude: 🟢 running  ❓ input  💬 idle  ⚠️ error  ⚫ stopped  ❔ unknown"
+		"Session: 🟢 active  ⚫ inactive | Claude: 🟢 Active  ❓ Waiting  💬 Ready  ⚠️ Error  ⚫ Stopped  ❔ Unknown"
 	key, selected, err := runFZFWithExpect(
 		strings.Join(allLines, "\n"),
 		[]string{"ctrl-d"},
