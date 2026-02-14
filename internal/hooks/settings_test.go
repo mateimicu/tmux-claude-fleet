@@ -307,6 +307,71 @@ func TestRemoveHooks_NoOurHooks(t *testing.T) {
 	}
 }
 
+func TestIsSetupInFile(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "hooks-test-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	t.Run("hooks present with correct binary", func(t *testing.T) {
+		settingsPath := filepath.Join(tmpDir, "correct-binary.json")
+		if err := setupHooksToFile("/usr/local/bin/claude-matrix", settingsPath); err != nil {
+			t.Fatal(err)
+		}
+
+		ok, err := isSetupInFile("/usr/local/bin/claude-matrix", settingsPath)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !ok {
+			t.Error("expected isSetupInFile to return true for correct binary path")
+		}
+	})
+
+	t.Run("hooks present with different binary", func(t *testing.T) {
+		settingsPath := filepath.Join(tmpDir, "different-binary.json")
+		if err := setupHooksToFile("/usr/local/bin/claude-matrix", settingsPath); err != nil {
+			t.Fatal(err)
+		}
+
+		ok, err := isSetupInFile("/other/path/claude-matrix", settingsPath)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if ok {
+			t.Error("expected isSetupInFile to return false for different binary path")
+		}
+	})
+
+	t.Run("no hooks at all", func(t *testing.T) {
+		settingsPath := filepath.Join(tmpDir, "no-hooks.json")
+		if err := os.WriteFile(settingsPath, []byte(`{"someKey": "value"}`), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		ok, err := isSetupInFile("/usr/local/bin/claude-matrix", settingsPath)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if ok {
+			t.Error("expected isSetupInFile to return false when no hooks exist")
+		}
+	})
+
+	t.Run("file does not exist", func(t *testing.T) {
+		settingsPath := filepath.Join(tmpDir, "nonexistent.json")
+
+		ok, err := isSetupInFile("/usr/local/bin/claude-matrix", settingsPath)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if ok {
+			t.Error("expected isSetupInFile to return false for nonexistent file")
+		}
+	})
+}
+
 // verifyHookCommand checks that a hook event has an entry with the expected command.
 func verifyHookCommand(t *testing.T, hooks map[string]interface{}, event, expectedCmd string) {
 	t.Helper()
