@@ -89,6 +89,17 @@ Clones use a local mirror cache (`~/.tmux-claude-matrix/.cache/mirrors/`) so sub
 </details>
 
 <details>
+<summary>Status Bar Integration</summary>
+
+Sessions have auto-generated titles (`org/repo #N`) shown in the tmux status bar via the `@claude-matrix-title` environment variable. Use `claude-matrix rename` to customize titles.
+
+```tmux
+set -g status-right "#{@claude-matrix-title} | %H:%M"
+```
+
+</details>
+
+<details>
 <summary>Tmux Keybindings</summary>
 
 When installed as a tmux plugin:
