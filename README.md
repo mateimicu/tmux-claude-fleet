@@ -89,6 +89,7 @@ Interactive selection for both repository browsing and session management.
 - `↑↓` — navigate
 - `Enter` — switch to session
 - `Ctrl+D` — delete session
+- `Ctrl+T` — toggle hide/show inactive sessions
 - `Ctrl+C` — cancel
 
 Aligned table view with columns: index, tmux status, source, repository, Claude state, session name. Emoji legend in the header.
