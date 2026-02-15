@@ -21,8 +21,8 @@ local file, YAML workspaces). Tracks Claude Code state per session via hooks
 * `internal/git/` - Git clone operations with mirror cache
 * `internal/tmux/` - tmux session/window management
 * `internal/fzf/` - Interactive selection UI
-* `internal/hooks/` - Claude event-to-state mapping
-* `internal/status/` - Session state tracking
+* `internal/hooks/` - Claude event-to-state mapping (handles multi-agent via per-agent state files)
+* `internal/status/` - Session state tracking with per-agent files and attention-priority aggregate
 * `pkg/types/` - Exported types (Repository, Session, Config, ClaudeState)
 
 ## Code Patterns
@@ -34,3 +34,13 @@ local file, YAML workspaces). Tracks Claude Code state per session via hooks
 * golangci-lint config in `.golangci.yml` — errcheck, revive, gocritic enabled
 * goimports local prefix: `github.com/mateimicu/tmux-claude-matrix`
 * Version injected via LDFLAGS from `git describe --tags`
+
+## Multi-Agent Status Tracking
+* In-process Claude teammates share a tmux pane but have unique `session_id` values
+* Per-agent state files: `{sessionName}.agent.{sessionID}.state`
+* Aggregate state file: `{sessionName}.state` (backward-compatible, read by old binaries)
+* Attention-priority order: `error` > `waiting_for_input` > `running` > `idle` > `stopped` > `unknown`
+* `DefaultStaleThreshold` = 10 minutes — stale per-agent files are excluded and cleaned up
+* `sanitizeAgentID()` prevents path traversal via `filepath.Base()`
+* Sub-agents (Task tool) share parent's `session_id` — transparent, no special handling
+* Tmux-mode teammates have separate panes — already handled by existing per-session state files
