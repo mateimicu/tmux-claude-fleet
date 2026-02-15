@@ -465,9 +465,9 @@ func TestParseFZFOutput(t *testing.T) {
 func TestSessionActions_NoDuplicateValues(t *testing.T) {
 	// Guard against duplicate action values that could cause switch
 	// cases to silently fall through to the wrong handler.
-	// SelectSession uses a switch on SessionAction; every value must
-	// be distinct so that toggle, cancel, delete, and switch are
-	// each routed correctly.
+	// SelectSessionWithAction uses a switch on SessionAction; every
+	// value must be distinct so that toggle, cancel, delete, and
+	// switch are each routed correctly.
 	values := map[SessionAction]bool{}
 	for _, action := range []SessionAction{
 		SessionActionSwitch,

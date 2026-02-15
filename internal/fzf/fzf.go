@@ -112,26 +112,6 @@ func sessionLegend(showActiveOnly bool) string {
 		"Session: 🟢 active  ⚫ inactive | Claude: 🟢 Active  ❓ Waiting  💬 Ready  ⚠️ Error  ⚫ Stopped  ❔ Unknown"
 }
 
-// SelectSession shows FZF interface for session selection.
-// It re-prompts on toggle actions since the simplified API does not
-// expose filtering to the caller.
-func SelectSession(sessions []*types.SessionStatus) (*types.SessionStatus, error) {
-	for {
-		selection, err := SelectSessionWithAction(sessions, false)
-		if err != nil {
-			return nil, err
-		}
-		switch selection.Action {
-		case SessionActionCancel:
-			return nil, fmt.Errorf("selection cancelled")
-		case SessionActionToggleFilter:
-			continue
-		default:
-			return selection.Session, nil
-		}
-	}
-}
-
 // SelectSessionWithAction shows FZF interface for session selection with action support.
 // showActiveOnly controls the ctrl-t legend hint text.
 func SelectSessionWithAction(sessions []*types.SessionStatus, showActiveOnly bool) (*SessionSelection, error) {
