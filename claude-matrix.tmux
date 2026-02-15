@@ -118,6 +118,8 @@ download_binary() {
     elif command -v wget >/dev/null 2>&1; then
         wget -q --timeout=10 -O "$tmpdir/$binary_name" "$binary_url" || return 1
         wget -q --timeout=10 -O "$tmpdir/checksums.txt" "$checksums_url" || return 1
+    else
+        return 1
     fi
 
     # Verify checksum
@@ -125,9 +127,12 @@ download_binary() {
         return 1
     fi
 
-    # Install binary
-    mkdir -p "$(dirname "$dest")"
-    mv "$tmpdir/$binary_name" "$dest"
+    # Install binary (stage in target dir for atomic same-filesystem rename)
+    local dest_dir
+    dest_dir="$(dirname "$dest")"
+    mkdir -p "$dest_dir"
+    mv "$tmpdir/$binary_name" "${dest}.tmp"
+    mv "${dest}.tmp" "$dest"
     chmod +x "$dest"
 }
 
