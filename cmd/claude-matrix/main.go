@@ -24,6 +24,7 @@ It helps you quickly create development environments for your repositories.`,
 	rootCmd.AddCommand(
 		createCmd(),
 		listCmd(),
+		listReposCmd(),
 		renameCmd(),
 		diagnoseCmd(),
 		refreshCmd(),

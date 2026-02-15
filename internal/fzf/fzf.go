@@ -20,7 +20,7 @@ func SelectRepository(repos []*types.Repository) (*types.Repository, error) {
 	// Format repos for display
 	var lines []string
 	for _, repo := range repos {
-		line := formatRepoLine(repo)
+		line := FormatRepoLine(repo)
 		lines = append(lines, line)
 	}
 
@@ -145,7 +145,8 @@ func SelectSessionWithAction(sessions []*types.SessionStatus) (*SessionSelection
 	return nil, fmt.Errorf("selected session not found")
 }
 
-func formatRepoLine(r *types.Repository) string {
+// FormatRepoLine formats a repository as a single line for FZF display.
+func FormatRepoLine(r *types.Repository) string {
 	if r.IsWorkspace {
 		return fmt.Sprintf("workspace: %s - %s [workspace:%s]", r.Name, r.Description, r.Name)
 	}
