@@ -67,10 +67,13 @@ func TestGitHubSource_Cache(t *testing.T) {
 		// Wait for cache to expire
 		time.Sleep(150 * time.Millisecond)
 
-		// Check cache - should be expired
-		_, _, ok := shortTTLSource.checkCache()
-		if ok {
+		// Check cache - should be expired but still return data
+		repos, _, valid := shortTTLSource.checkCache()
+		if valid {
 			t.Error("Cache should have expired")
+		}
+		if len(repos) != len(testRepos) {
+			t.Errorf("Expected %d stale repos, got %d", len(testRepos), len(repos))
 		}
 	})
 
@@ -304,7 +307,7 @@ func TestGitHubSource_ForceRefresh(t *testing.T) {
 	})
 }
 
-func TestGitHubSource_LoadStaleCache(t *testing.T) {
+func TestGitHubSource_StaleCacheViaCheckCache(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "github-stale-cache-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
@@ -319,13 +322,13 @@ func TestGitHubSource_LoadStaleCache(t *testing.T) {
 	source.saveCache(testRepos)
 	time.Sleep(5 * time.Millisecond) // Let cache expire
 
-	// loadStaleCache should return data regardless of TTL
-	repos, ok := source.loadStaleCache()
-	if !ok {
-		t.Fatal("loadStaleCache should return data even when expired")
+	// checkCache should return stale data with valid=false
+	repos, _, valid := source.checkCache()
+	if valid {
+		t.Error("expected valid=false for expired cache")
 	}
 	if len(repos) != 1 {
-		t.Fatalf("expected 1 repo, got %d", len(repos))
+		t.Fatalf("expected 1 stale repo, got %d", len(repos))
 	}
 	if repos[0].URL != testRepos[0].URL {
 		t.Errorf("expected URL %q, got %q", testRepos[0].URL, repos[0].URL)
