@@ -13,8 +13,10 @@ import (
 
 // buildRepoFZFArgs returns the FZF arguments for repository selection.
 // The binaryPath is used to construct the Ctrl+R reload command.
+// The path is shell-quoted to handle spaces (e.g. "/Users/First Last/bin/claude-matrix").
 func buildRepoFZFArgs(binaryPath string) []string {
-	reloadCmd := fmt.Sprintf("%s list-repos --force-refresh", binaryPath)
+	quoted := "'" + strings.ReplaceAll(binaryPath, "'", "'\\''") + "'"
+	reloadCmd := fmt.Sprintf("%s list-repos --force-refresh", quoted)
 	return []string{
 		"--prompt=📁 Select repository > ",
 		"--reverse",

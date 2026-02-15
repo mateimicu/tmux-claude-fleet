@@ -471,30 +471,60 @@ func TestFilterFZFEnv(t *testing.T) {
 }
 
 func TestBuildRepoFZFArgs(t *testing.T) {
-	args := buildRepoFZFArgs("/usr/local/bin/claude-matrix")
+	t.Run("SimplePath", func(t *testing.T) {
+		args := buildRepoFZFArgs("/usr/local/bin/claude-matrix")
 
-	hasReload := false
-	hasHeader := false
-	for _, arg := range args {
-		if strings.Contains(arg, "ctrl-r:reload") {
-			hasReload = true
-			if !strings.Contains(arg, "/usr/local/bin/claude-matrix") {
-				t.Errorf("reload binding should contain binary path, got %q", arg)
+		hasReload := false
+		hasHeader := false
+		for _, arg := range args {
+			if strings.Contains(arg, "ctrl-r:reload") {
+				hasReload = true
+				if !strings.Contains(arg, "/usr/local/bin/claude-matrix") {
+					t.Errorf("reload binding should contain binary path, got %q", arg)
+				}
+				if !strings.Contains(arg, "--force-refresh") {
+					t.Errorf("reload binding should contain --force-refresh, got %q", arg)
+				}
+				if !strings.Contains(arg, "'/usr/local/bin/claude-matrix'") {
+					t.Errorf("binary path should be single-quoted, got %q", arg)
+				}
 			}
-			if !strings.Contains(arg, "--force-refresh") {
-				t.Errorf("reload binding should contain --force-refresh, got %q", arg)
+			if strings.Contains(arg, "ctrl-r") && strings.Contains(arg, "refresh") && strings.HasPrefix(arg, "--header=") {
+				hasHeader = true
 			}
 		}
-		if strings.Contains(arg, "ctrl-r") && strings.Contains(arg, "refresh") && strings.HasPrefix(arg, "--header=") {
-			hasHeader = true
+		if !hasReload {
+			t.Error("FZF args should contain ctrl-r reload binding")
 		}
-	}
-	if !hasReload {
-		t.Error("FZF args should contain ctrl-r reload binding")
-	}
-	if !hasHeader {
-		t.Error("FZF header should mention ctrl-r refresh")
-	}
+		if !hasHeader {
+			t.Error("FZF header should mention ctrl-r refresh")
+		}
+	})
+
+	t.Run("PathWithSpaces", func(t *testing.T) {
+		args := buildRepoFZFArgs("/Users/First Last/bin/claude-matrix")
+
+		for _, arg := range args {
+			if strings.Contains(arg, "ctrl-r:reload") {
+				if !strings.Contains(arg, "'/Users/First Last/bin/claude-matrix'") {
+					t.Errorf("path with spaces should be single-quoted, got %q", arg)
+				}
+			}
+		}
+	})
+
+	t.Run("PathWithSingleQuote", func(t *testing.T) {
+		args := buildRepoFZFArgs("/Users/O'Brien/bin/claude-matrix")
+
+		for _, arg := range args {
+			if strings.Contains(arg, "ctrl-r:reload") {
+				// The quote should be escaped as '\''
+				if !strings.Contains(arg, "'/Users/O'\\''Brien/bin/claude-matrix'") {
+					t.Errorf("single quote in path should be escaped, got %q", arg)
+				}
+			}
+		}
+	})
 }
 
 func TestExtractSessionName(t *testing.T) {

@@ -48,23 +48,6 @@ func (g *GitHubSource) SetForceRefresh(force bool) {
 	g.forceRefresh = force
 }
 
-// loadStaleCache loads cached data regardless of TTL expiration.
-func (g *GitHubSource) loadStaleCache() ([]*types.Repository, bool) {
-	cachePath := filepath.Join(g.cacheDir, "github-repos.json")
-
-	data, err := os.ReadFile(cachePath)
-	if err != nil {
-		return nil, false
-	}
-
-	var cache cacheData
-	if err := json.Unmarshal(data, &cache); err != nil {
-		return nil, false
-	}
-
-	return cache.Repos, true
-}
-
 // Name returns the source name
 func (g *GitHubSource) Name() string {
 	return "github"
@@ -83,14 +66,14 @@ type cacheData struct {
 
 // List returns all repositories from GitHub
 func (g *GitHubSource) List(ctx context.Context) ([]*types.Repository, error) {
-	// If not force-refreshing, check cache normally
-	if !g.forceRefresh {
-		if repos, age, ok := g.checkCache(); ok {
-			if g.logger != nil {
-				fmt.Fprintf(g.logger, "  ✓ Using cached GitHub repos (age: %s)\n", formatDuration(age)) //nolint:errcheck // Logging output is non-critical
-			}
-			return g.filterByOrgs(repos), nil
+	cached, cacheAge, cacheValid := g.checkCache()
+
+	// If not force-refreshing and cache is valid, use it
+	if !g.forceRefresh && cacheValid {
+		if g.logger != nil {
+			fmt.Fprintf(g.logger, "  ✓ Using cached GitHub repos (age: %s)\n", formatDuration(cacheAge)) //nolint:errcheck // Logging output is non-critical
 		}
+		return g.filterByOrgs(cached), nil
 	}
 
 	// Fetch from API
@@ -100,13 +83,11 @@ func (g *GitHubSource) List(ctx context.Context) ([]*types.Repository, error) {
 	repos, err := g.fetchFromAPI(ctx)
 	if err != nil {
 		// On force-refresh failure, fall back to stale cache
-		if g.forceRefresh {
-			if stale, ok := g.loadStaleCache(); ok {
-				if g.logger != nil {
-					fmt.Fprintf(g.logger, "  ⚠️ API fetch failed, using stale cache\n") //nolint:errcheck // Logging output is non-critical
-				}
-				return g.filterByOrgs(stale), nil
+		if g.forceRefresh && cached != nil {
+			if g.logger != nil {
+				fmt.Fprintf(g.logger, "  ⚠️ API fetch failed, using stale cache\n") //nolint:errcheck // Logging output is non-critical
 			}
+			return g.filterByOrgs(cached), nil
 		}
 		return nil, err
 	}
@@ -197,7 +178,7 @@ func (g *GitHubSource) fetchFromAPI(ctx context.Context) ([]*types.Repository, e
 	return allRepos, nil
 }
 
-func (g *GitHubSource) checkCache() ([]*types.Repository, time.Duration, bool) {
+func (g *GitHubSource) checkCache() (repos []*types.Repository, age time.Duration, valid bool) {
 	cachePath := filepath.Join(g.cacheDir, "github-repos.json")
 
 	data, err := os.ReadFile(cachePath)
@@ -210,13 +191,8 @@ func (g *GitHubSource) checkCache() ([]*types.Repository, time.Duration, bool) {
 		return nil, 0, false
 	}
 
-	// Check if cache is still valid
-	age := time.Since(cache.Timestamp)
-	if age > g.cacheTTL {
-		return nil, 0, false
-	}
-
-	return cache.Repos, age, true
+	age = time.Since(cache.Timestamp)
+	return cache.Repos, age, age <= g.cacheTTL
 }
 
 func (g *GitHubSource) saveCache(repos []*types.Repository) {
