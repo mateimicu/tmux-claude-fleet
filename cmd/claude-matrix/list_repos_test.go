@@ -19,6 +19,7 @@ func TestListReposCmd_Structure(t *testing.T) {
 	flag := cmd.Flags().Lookup("force-refresh")
 	if flag == nil {
 		t.Fatal("expected --force-refresh flag")
+		return
 	}
 	if flag.DefValue != "false" {
 		t.Errorf("expected --force-refresh default 'false', got %q", flag.DefValue)
