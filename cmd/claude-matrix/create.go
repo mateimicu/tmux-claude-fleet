@@ -61,6 +61,11 @@ func runCreate(ctx context.Context) error {
 
 	fmt.Printf("✓ Found %d repositories\n", len(repoList))
 
+	// Check FZF version before launching selection UI
+	if err := fzf.CheckFZFVersion(); err != nil {
+		return err
+	}
+
 	// Get binary path for FZF reload
 	binaryPath, err := os.Executable()
 	if err != nil {
