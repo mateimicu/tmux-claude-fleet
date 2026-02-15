@@ -36,6 +36,9 @@ claude-matrix refresh
 
 # Check configuration
 claude-matrix diagnose
+
+# List repos (FZF-compatible, used internally)
+claude-matrix list-repos [--force-refresh]
 ```
 
 ## Features
@@ -55,7 +58,7 @@ Three repository sources:
 - **GitHub** — auto-discover repos from authenticated GitHub accounts, filterable by org
 - **Workspaces** (`workspaces.yaml`) — group multiple repos into named workspaces
 
-Results are cached with a 30-minute TTL. Supports HTTPS and SSH URL formats.
+Results are cached with a 24-hour TTL. Force-refresh (via `Ctrl+R` in the repo picker) bypasses TTL and fetches fresh data; on failure it falls back to stale cached results. Supports HTTPS and SSH URL formats.
 
 </details>
 
@@ -74,10 +77,21 @@ Setup with `claude-matrix setup-hooks`, remove with `claude-matrix remove-hooks`
 <details>
 <summary>FZF Interactive UI</summary>
 
-Interactive selection for both repository browsing and session management:
-- Aligned table view with columns: index, tmux status, source, repository, Claude state, session name
-- `Enter` to switch, `Ctrl+D` to delete
-- Emoji legend in the header
+Interactive selection for both repository browsing and session management.
+
+**Repo picker keybindings:**
+- `↑↓` — navigate
+- `Enter` — select repository and create session
+- `Ctrl+R` — force-refresh repository list (bypasses cache; falls back to stale cache on failure)
+- `Ctrl+C` — cancel
+
+**Session picker keybindings:**
+- `↑↓` — navigate
+- `Enter` — switch to session
+- `Ctrl+D` — delete session
+- `Ctrl+C` — cancel
+
+Aligned table view with columns: index, tmux status, source, repository, Claude state, session name. Emoji legend in the header.
 
 </details>
 
@@ -103,9 +117,11 @@ set -g status-right "#{@claude-matrix-title} | %H:%M"
 <summary>Tmux Keybindings</summary>
 
 When installed as a tmux plugin:
-- `prefix + a` — create session
-- `prefix + A` — list sessions
+- `prefix + a` — create session (pick a repo, clone it, start tmux session)
+- `prefix + A` — list/switch sessions
 - `prefix + D` — delete session
+
+Keys are configurable via `@claude-matrix-create-key`, `@claude-matrix-list-key`, `@claude-matrix-delete-key`.
 
 </details>
 
@@ -135,6 +151,15 @@ GITHUB_ORGS=org1,org2
 ```
 
 All options can also be set via environment variables prefixed with `TMUX_CLAUDE_MATRIX_` (e.g. `TMUX_CLAUDE_MATRIX_CLONE_DIR`).
+
+### Tmux Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `@claude-matrix-use-popup` | `true` | Use tmux popup windows for interactive pickers. Set to `false` to use new-window instead. |
+| `@claude-matrix-create-key` | `a` | Keybinding for creating a session |
+| `@claude-matrix-list-key` | `A` | Keybinding for listing sessions |
+| `@claude-matrix-delete-key` | `D` | Keybinding for deleting a session |
 
 ## License
 
