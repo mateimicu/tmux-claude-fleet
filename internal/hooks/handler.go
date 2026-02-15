@@ -45,6 +45,7 @@ func MapEventToState(event *HookEvent) types.ClaudeState {
 }
 
 // HandleHookEvent reads a hook event from stdin and updates tmux state accordingly.
+// It writes per-agent state files and recomputes the aggregate for the session.
 func HandleHookEvent(reader io.Reader, mgr *tmux.Manager) error {
 	data, err := io.ReadAll(reader)
 	if err != nil {
@@ -69,23 +70,38 @@ func HandleHookEvent(reader io.Reader, mgr *tmux.Manager) error {
 	}
 
 	statusDir := status.DefaultStatusDir()
+	agentID := event.SessionID
+	if agentID == "" {
+		agentID = "default"
+	}
 
 	if state == types.ClaudeStateStopped {
-		// Reset window name to plain "claude" before removing state
-		_ = mgr.RenameWindowByPane(tmuxPane, "claude") //nolint:errcheck // Best-effort reset
-		return status.RemoveState(statusDir, sessionName)
+		// Remove this agent's state file
+		if err := status.RemoveAgentState(statusDir, sessionName, agentID); err != nil {
+			return err
+		}
+	} else {
+		// Skip write if this agent's state hasn't changed
+		current, readErr := status.ReadAgentState(statusDir, sessionName, agentID)
+		if readErr == nil && current.State == string(state) {
+			return nil
+		}
+		if err := status.WriteAgentState(statusDir, sessionName, agentID, state); err != nil {
+			return err
+		}
 	}
 
-	// Read current state to avoid unnecessary tmux rename
-	current, err := status.ReadState(statusDir, sessionName)
-	if err == nil && current.State == string(state) && current.SessionID == event.SessionID {
-		return nil
-	}
-
-	if err := status.WriteState(statusDir, sessionName, state, event.SessionID); err != nil {
+	// Recompute aggregate from all agent files
+	aggState, err := status.UpdateAggregate(statusDir, sessionName, status.DefaultStaleThreshold)
+	if err != nil {
 		return err
 	}
 
-	emoji := status.EmojiForState(state)
+	// Update tmux window name to reflect aggregate state
+	if aggState == types.ClaudeStateStopped {
+		_ = mgr.RenameWindowByPane(tmuxPane, "claude") //nolint:errcheck // Best-effort reset
+		return nil
+	}
+	emoji := status.EmojiForState(aggState)
 	return mgr.RenameWindowByPane(tmuxPane, emoji+"claude")
 }
