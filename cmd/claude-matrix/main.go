@@ -30,6 +30,7 @@ It helps you quickly create development environments for your repositories.`,
 		hookHandlerCmd(),
 		setupHooksCmd(),
 		removeHooksCmd(),
+		versionCmd(),
 	)
 
 	if err := rootCmd.ExecuteContext(ctx); err != nil {
