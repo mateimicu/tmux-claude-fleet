@@ -18,7 +18,7 @@ func versionCmd() *cobra.Command {
 			if v == "" {
 				v = "dev"
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "claude-matrix %s\n", v)
+			fmt.Fprintf(cmd.OutOrStdout(), "claude-matrix %s\n", v) //nolint:errcheck
 		},
 	}
 }
