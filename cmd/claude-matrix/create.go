@@ -61,8 +61,14 @@ func runCreate(ctx context.Context) error {
 
 	fmt.Printf("✓ Found %d repositories\n", len(repoList))
 
+	// Get binary path for FZF reload
+	binaryPath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("failed to get binary path: %w", err)
+	}
+
 	// Let user select
-	selected, err := fzf.SelectRepository(repoList)
+	selected, err := fzf.SelectRepository(repoList, binaryPath)
 	if err != nil {
 		return fmt.Errorf("repository selection cancelled: %w", err)
 	}
