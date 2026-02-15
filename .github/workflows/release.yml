@@ -4,6 +4,10 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: write
@@ -12,24 +16,47 @@ jobs:
   release:
     name: Create Release
     runs-on: ubicloud-standard-2
+    if: >-
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.23'
 
-      - name: Get version
-        id: version
-        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      - name: Determine release type
+        id: release_info
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            echo "tag=${TAG}" >> $GITHUB_OUTPUT
+            echo "version=${TAG}" >> $GITHUB_OUTPUT
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+            echo "is_tag=true" >> $GITHUB_OUTPUT
+          else
+            SHORT_SHA="$(git rev-parse --short HEAD)"
+            TAG="dev-${SHORT_SHA}"
+            echo "tag=${TAG}" >> $GITHUB_OUTPUT
+            echo "version=${TAG}" >> $GITHUB_OUTPUT
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+            echo "is_tag=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create dev tag
+        if: steps.release_info.outputs.is_tag == 'false'
+        run: |
+          git tag "${{ steps.release_info.outputs.tag }}"
 
       - name: Cross-compile binaries
-        run: make cross-compile
+        run: make cross-compile VERSION="${{ steps.release_info.outputs.version }}"
 
       - name: Create checksums
         run: |
@@ -38,9 +65,9 @@ jobs:
           cat checksums.txt
 
       - name: Create release notes
-        id: release_notes
         run: |
-          cat > release_notes.md << 'EOF'
+          {
+            cat << 'NOTES'
           ## Installation
 
           Download the appropriate binary for your platform:
@@ -48,12 +75,12 @@ jobs:
           ### macOS
           ```bash
           # Intel Mac
-          curl -LO https://github.com/mateimicu/tmux-claude-matrix/releases/download/${{ steps.version.outputs.version }}/claude-matrix-darwin-amd64
+          curl -LO https://github.com/mateimicu/tmux-claude-matrix/releases/download/${{ steps.release_info.outputs.tag }}/claude-matrix-darwin-amd64
           chmod +x claude-matrix-darwin-amd64
           sudo mv claude-matrix-darwin-amd64 /usr/local/bin/claude-matrix
 
           # Apple Silicon Mac
-          curl -LO https://github.com/mateimicu/tmux-claude-matrix/releases/download/${{ steps.version.outputs.version }}/claude-matrix-darwin-arm64
+          curl -LO https://github.com/mateimicu/tmux-claude-matrix/releases/download/${{ steps.release_info.outputs.tag }}/claude-matrix-darwin-arm64
           chmod +x claude-matrix-darwin-arm64
           sudo mv claude-matrix-darwin-arm64 /usr/local/bin/claude-matrix
           ```
@@ -61,19 +88,19 @@ jobs:
           ### Linux
           ```bash
           # x86_64
-          curl -LO https://github.com/mateimicu/tmux-claude-matrix/releases/download/${{ steps.version.outputs.version }}/claude-matrix-linux-amd64
+          curl -LO https://github.com/mateimicu/tmux-claude-matrix/releases/download/${{ steps.release_info.outputs.tag }}/claude-matrix-linux-amd64
           chmod +x claude-matrix-linux-amd64
           sudo mv claude-matrix-linux-amd64 /usr/local/bin/claude-matrix
 
           # ARM64
-          curl -LO https://github.com/mateimicu/tmux-claude-matrix/releases/download/${{ steps.version.outputs.version }}/claude-matrix-linux-arm64
+          curl -LO https://github.com/mateimicu/tmux-claude-matrix/releases/download/${{ steps.release_info.outputs.tag }}/claude-matrix-linux-arm64
           chmod +x claude-matrix-linux-arm64
           sudo mv claude-matrix-linux-arm64 /usr/local/bin/claude-matrix
           ```
 
           ### Verify Installation
           ```bash
-          claude-matrix --help
+          claude-matrix version
           ```
 
           ## What's New
@@ -82,14 +109,16 @@ jobs:
 
           ## Checksums
 
-          \`\`\`
-          $(cat bin/checksums.txt)
-          \`\`\`
-          EOF
+          ```
+          NOTES
+            cat bin/checksums.txt
+            echo '```'
+          } > release_notes.md
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.release_info.outputs.tag }}
           files: |
             bin/claude-matrix-darwin-amd64
             bin/claude-matrix-darwin-arm64
@@ -98,5 +127,5 @@ jobs:
             bin/checksums.txt
           body_path: release_notes.md
           draft: false
-          prerelease: false
+          prerelease: ${{ steps.release_info.outputs.prerelease == 'true' }}
           generate_release_notes: true
