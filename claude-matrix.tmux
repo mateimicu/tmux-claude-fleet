@@ -153,45 +153,53 @@ build_from_source() {
 
 # --- Main ---
 
-# Get keybindings
-create_key=$(get_tmux_option "@claude-matrix-create-key" "a")
-list_key=$(get_tmux_option "@claude-matrix-list-key" "A")
-delete_key=$(get_tmux_option "@claude-matrix-delete-key" "D")
-use_popup=$(get_tmux_option "@claude-matrix-use-popup" "true")
+# Helper: bind keybindings for the plugin
+bind_keys() {
+    local create_key list_key delete_key use_popup
+    create_key=$(get_tmux_option "@claude-matrix-create-key" "a")
+    list_key=$(get_tmux_option "@claude-matrix-list-key" "A")
+    delete_key=$(get_tmux_option "@claude-matrix-delete-key" "D")
+    use_popup=$(get_tmux_option "@claude-matrix-use-popup" "true")
 
-# Bind keys using popup or new-window
-if [ "$use_popup" = "true" ]; then
-    tmux bind-key "$create_key" display-popup -w 80% -h 80% -E "$BINARY create"
-    tmux bind-key "$list_key" display-popup -w 80% -h 80% -E "$BINARY list"
-    tmux bind-key "$delete_key" display-popup -w 80% -h 80% -E "$BINARY delete"
-else
-    tmux bind-key "$create_key" new-window "$BINARY create"
-    tmux bind-key "$list_key" new-window "$BINARY list"
-    tmux bind-key "$delete_key" new-window "$BINARY delete"
-fi
+    if [ "$use_popup" = "true" ]; then
+        tmux bind-key "$create_key" display-popup -w 80% -h 80% -E "$BINARY create"
+        tmux bind-key "$list_key" display-popup -w 80% -h 80% -E "$BINARY list"
+        tmux bind-key "$delete_key" display-popup -w 80% -h 80% -E "$BINARY delete"
+    else
+        tmux bind-key "$create_key" new-window "$BINARY create"
+        tmux bind-key "$list_key" new-window "$BINARY list"
+        tmux bind-key "$delete_key" new-window "$BINARY delete"
+    fi
+}
 
 # Determine what action is needed
 repo=$(get_tmux_option "@claude-matrix-repo" "mateimicu/tmux-claude-matrix")
 platform="$(detect_platform)"
 
 if [ ! -x "$BINARY" ]; then
-    # No binary at all — full install needed (in background)
-    (
-        local_tag=""
-        if [ -n "$platform" ]; then
-            local_tag="$(get_latest_tag "$repo")"
-        fi
+    # No binary — install synchronously so key bindings point to a real binary.
+    # A background install would race: keys would be bound before the binary exists.
+    local_tag=""
+    if [ -n "$platform" ]; then
+        local_tag="$(get_latest_tag "$repo")"
+    fi
 
-        if [ -n "$local_tag" ] && download_binary "$repo" "$platform" "$BINARY" "$local_tag"; then
-            tmux display-message "claude-matrix: Installed pre-built binary ($local_tag)"
-        elif build_from_source "$CURRENT_DIR"; then
-            tmux display-message "claude-matrix: Built from source"
-        else
-            tmux display-message "claude-matrix: Install failed. Download from GitHub releases or install Go and run 'make build'."
-        fi
-    ) &
+    if [ -n "$local_tag" ] && download_binary "$repo" "$platform" "$BINARY" "$local_tag"; then
+        tmux display-message "claude-matrix: Installed pre-built binary ($local_tag)"
+    elif build_from_source "$CURRENT_DIR"; then
+        tmux display-message "claude-matrix: Built from source"
+    else
+        tmux display-message "claude-matrix: Install failed. Download from GitHub releases or install Go and run 'make build'."
+    fi
+
+    # Bind keys only after the binary is available
+    bind_keys
 else
-    # Binary exists — check for updates (in background)
+    # Binary exists — bind keys immediately (existing binary works), then
+    # check for updates in the background. The atomic mv in download_binary
+    # ensures a key press mid-update won't hit a partial file.
+    bind_keys
+
     (
         # Primary: version-based staleness check against latest release
         if [ -n "$platform" ]; then
@@ -215,8 +223,6 @@ else
                 exit 0
             fi
         fi
-
-        tmux display-message "claude-matrix: Plugin loaded"
     ) &
 fi
 
