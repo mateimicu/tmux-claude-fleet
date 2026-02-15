@@ -17,13 +17,14 @@ import (
 func buildRepoFZFArgs(binaryPath string) []string {
 	quoted := "'" + strings.ReplaceAll(binaryPath, "'", "'\\''") + "'"
 	reloadCmd := fmt.Sprintf("%s list-repos --force-refresh", quoted)
+	header := "↑↓ navigate | enter: select | ctrl-r: refresh | ctrl-c: cancel"
 	return []string{
 		"--prompt=📁 Select repository > ",
 		"--reverse",
 		"--border=rounded",
-		"--header=↑↓ navigate | enter: select | ctrl-r: refresh | ctrl-c: cancel",
+		"--header=" + header,
 		"--height=80%",
-		fmt.Sprintf("--bind=ctrl-r:reload(%s)+change-header(Refreshing repositories...)", reloadCmd),
+		fmt.Sprintf("--bind=ctrl-r:change-header(Refreshing repositories...)+reload(%s)+change-header(%s)", reloadCmd, header),
 	}
 }
 
