@@ -192,8 +192,10 @@ if [ ! -x "$BINARY" ]; then
         tmux display-message "claude-matrix: Install failed. Download from GitHub releases or install Go and run 'make build'."
     fi
 
-    # Bind keys only after the binary is available
-    bind_keys
+    # Bind keys only if installation succeeded
+    if [ -x "$BINARY" ]; then
+        bind_keys
+    fi
 else
     # Binary exists — bind keys immediately (existing binary works), then
     # check for updates in the background. The atomic mv in download_binary
