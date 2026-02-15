@@ -233,7 +233,184 @@ git commit -m "feat: change default cache TTL to 24 hours"
 
 ---
 
-### Task 3: Add list-repos subcommand
+### Task 3a: Add force-refresh support to GitHubSource
+
+**Files:**
+- Modify: `internal/repos/github.go`
+- Modify: `internal/repos/github_test.go`
+
+**Step 1: Write the test for force-refresh with fallback**
+
+Add to `internal/repos/github_test.go`:
+
+```go
+func TestGitHubSource_ForceRefresh(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "github-force-refresh-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Pre-populate cache with stale data (expired TTL)
+	staleRepos := []*types.Repository{
+		{Source: "github", URL: "https://github.com/test/stale-repo", Name: "test/stale-repo"},
+	}
+	staleSource := NewGitHubSource("", tmpDir, 1*time.Millisecond, []string{})
+	staleSource.saveCache(staleRepos)
+	time.Sleep(5 * time.Millisecond) // Let cache expire
+
+	t.Run("ForceRefreshFlag", func(t *testing.T) {
+		source := NewGitHubSource("", tmpDir, 24*time.Hour, []string{})
+		source.SetForceRefresh(true)
+
+		// Verify the flag is set
+		if !source.forceRefresh {
+			t.Error("forceRefresh should be true")
+		}
+	})
+}
+
+func TestGitHubSource_LoadStaleCache(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "github-stale-cache-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	testRepos := []*types.Repository{
+		{Source: "github", URL: "https://github.com/test/repo1", Name: "test/repo1"},
+	}
+
+	source := NewGitHubSource("", tmpDir, 1*time.Millisecond, []string{})
+	source.saveCache(testRepos)
+	time.Sleep(5 * time.Millisecond) // Let cache expire
+
+	// loadStaleCache should return data regardless of TTL
+	repos, ok := source.loadStaleCache()
+	if !ok {
+		t.Fatal("loadStaleCache should return data even when expired")
+	}
+	if len(repos) != 1 {
+		t.Fatalf("expected 1 repo, got %d", len(repos))
+	}
+	if repos[0].URL != testRepos[0].URL {
+		t.Errorf("expected URL %q, got %q", testRepos[0].URL, repos[0].URL)
+	}
+}
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `go test -v -run "TestGitHubSource_ForceRefresh|TestGitHubSource_LoadStaleCache" ./internal/repos/`
+Expected: FAIL with "undefined: SetForceRefresh" and "undefined: loadStaleCache"
+
+**Step 3: Implement force-refresh and stale cache fallback**
+
+In `internal/repos/github.go`, add:
+
+1. A `forceRefresh` field to `GitHubSource`
+2. A `SetForceRefresh` method
+3. A `loadStaleCache` method (loads cache ignoring TTL)
+4. Update `List()` to use force-refresh logic with fallback
+
+```go
+// Add field to GitHubSource struct:
+type GitHubSource struct {
+	client       *http.Client
+	token        string
+	cacheDir     string
+	orgs         []string
+	cacheTTL     time.Duration
+	logger       io.Writer
+	forceRefresh bool
+}
+
+// SetForceRefresh enables force refresh mode.
+// When enabled, List() bypasses TTL and always attempts API fetch.
+// On API failure, it falls back to stale cached data.
+func (g *GitHubSource) SetForceRefresh(force bool) {
+	g.forceRefresh = force
+}
+
+// loadStaleCache loads cached data regardless of TTL expiration.
+func (g *GitHubSource) loadStaleCache() ([]*types.Repository, bool) {
+	cachePath := filepath.Join(g.cacheDir, "github-repos.json")
+
+	data, err := os.ReadFile(cachePath)
+	if err != nil {
+		return nil, false
+	}
+
+	var cache cacheData
+	if err := json.Unmarshal(data, &cache); err != nil {
+		return nil, false
+	}
+
+	return cache.Repos, true
+}
+```
+
+Update `List()` method:
+
+```go
+func (g *GitHubSource) List(ctx context.Context) ([]*types.Repository, error) {
+	// If not force-refreshing, check cache normally
+	if !g.forceRefresh {
+		if repos, age, ok := g.checkCache(); ok {
+			if g.logger != nil {
+				fmt.Fprintf(g.logger, "  ✓ Using cached GitHub repos (age: %s)\n", formatDuration(age))
+			}
+			return g.filterByOrgs(repos), nil
+		}
+	}
+
+	// Fetch from API
+	if g.logger != nil {
+		fmt.Fprintf(g.logger, "  ⟳ Fetching GitHub repos from API...\n")
+	}
+	repos, err := g.fetchFromAPI(ctx)
+	if err != nil {
+		// On force-refresh failure, fall back to stale cache
+		if g.forceRefresh {
+			if stale, ok := g.loadStaleCache(); ok {
+				if g.logger != nil {
+					fmt.Fprintf(g.logger, "  ⚠️ API fetch failed, using stale cache\n")
+				}
+				return g.filterByOrgs(stale), nil
+			}
+		}
+		return nil, err
+	}
+
+	g.saveCache(repos)
+	if g.logger != nil {
+		fmt.Fprintf(g.logger, "  ✓ Cached %d repos for future use\n", len(repos))
+	}
+
+	return g.filterByOrgs(repos), nil
+}
+```
+
+**Step 4: Run test to verify it passes**
+
+Run: `go test -v -run "TestGitHubSource_ForceRefresh|TestGitHubSource_LoadStaleCache" ./internal/repos/`
+Expected: PASS
+
+**Step 5: Run all tests and linter**
+
+Run: `go test -v -race ./... && make lint`
+Expected: All PASS
+
+**Step 6: Commit**
+
+```bash
+git add internal/repos/github.go internal/repos/github_test.go
+git commit -m "feat: add force-refresh with stale cache fallback to GitHubSource"
+```
+
+---
+
+### Task 3b: Add list-repos subcommand
 
 **Files:**
 - Create: `cmd/claude-matrix/list_repos.go`
@@ -250,8 +427,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -273,7 +448,7 @@ func listReposCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&forceRefresh, "force-refresh", false, "Clear cache before fetching")
+	cmd.Flags().BoolVar(&forceRefresh, "force-refresh", false, "Bypass cache TTL and fetch fresh data (falls back to stale cache on failure)")
 
 	return cmd
 }
@@ -284,18 +459,19 @@ func runListRepos(ctx context.Context, forceRefresh bool) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	// If force refresh, clear the GitHub cache first
-	if forceRefresh {
-		cachePath := filepath.Join(cfg.CacheDir, "github-repos.json")
-		if err := os.Remove(cachePath); err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("failed to clear cache: %w", err)
-		}
-	}
-
-	// Build sources with logging suppressed
+	// Build sources with logging suppressed, passing forceRefresh flag
 	sources, err := buildSources(ctx, cfg, io.Discard)
 	if err != nil {
 		return err
+	}
+
+	// If force refresh, enable it on any GitHubSource
+	if forceRefresh {
+		for _, s := range sources {
+			if gh, ok := s.(*repos.GitHubSource); ok {
+				gh.SetForceRefresh(true)
+			}
+		}
 	}
 
 	discoverer := repos.NewDiscoverer(sources...)
