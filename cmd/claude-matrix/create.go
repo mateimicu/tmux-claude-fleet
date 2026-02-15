@@ -38,38 +38,9 @@ func runCreate(ctx context.Context) error {
 	}
 
 	// Build sources list
-	var sources []repos.Source
-
-	if cfg.WorkspacesEnabled && cfg.WorkspacesFile != "" {
-		sources = append(sources, repos.NewWorkspaceSource(cfg.WorkspacesFile))
-	}
-
-	if cfg.LocalConfigEnabled && cfg.LocalReposFile != "" {
-		sources = append(sources, repos.NewLocalSource(cfg.LocalReposFile))
-	}
-
-	if cfg.GitHubEnabled {
-		token, source := repos.GetGitHubToken(ctx)
-		if token == "" {
-			fmt.Println("⚠️  GitHub authentication not found, skipping GitHub repositories")
-			fmt.Println("   To enable GitHub integration:")
-			fmt.Println("   Option 1: Use gh CLI (recommended)")
-			fmt.Println("     - Install: brew install gh")
-			fmt.Println("     - Login: gh auth login")
-			fmt.Println("   Option 2: Set token manually")
-			fmt.Println("     - export GITHUB_TOKEN=\"ghp_your_token_here\"")
-			fmt.Println("     - Get token at: https://github.com/settings/tokens")
-		} else {
-			fmt.Printf("✓ GitHub integration enabled (using %s)\n", source)
-			if len(cfg.GitHubOrgs) > 0 {
-				fmt.Printf("  Filtering by organizations: %s\n", strings.Join(cfg.GitHubOrgs, ", "))
-			}
-			sources = append(sources, repos.NewGitHubSource(token, cfg.CacheDir, cfg.CacheTTL, cfg.GitHubOrgs))
-		}
-	}
-
-	if len(sources) == 0 {
-		return fmt.Errorf("no repository sources configured")
+	sources, err := buildSources(ctx, cfg, os.Stdout)
+	if err != nil {
+		return err
 	}
 
 	// Discover repos
