@@ -17,9 +17,18 @@ Use FZF's native `--bind reload` feature with a new `list-repos` CLI subcommand.
 ### 1. New `list-repos` subcommand (`cmd/claude-matrix/list_repos.go`)
 
 - Outputs FZF-formatted repo lines to stdout (one per line)
-- `--force-refresh` flag clears GitHub cache before fetching
+- `--force-refresh` flag bypasses cache TTL (does NOT delete cache file)
+- On API failure with `--force-refresh`, falls back to stale cached data
+- Only errors if no cache exists AND API call fails
 - Suppresses all logging (uses `io.Discard`) so only data lines are emitted
 - Reuses shared source-building logic
+
+### 1a. GitHubSource force-refresh support (`internal/repos/github.go`)
+
+- Add `ForceRefresh` field to `GitHubSource`
+- When `ForceRefresh` is true, `List()` skips TTL check and always attempts API fetch
+- On API failure, falls back to existing cache regardless of age
+- `NewGitHubSourceWithForceRefresh()` constructor or setter method
 
 ### 2. Shared source builder (`cmd/claude-matrix/sources.go`)
 
