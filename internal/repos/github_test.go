@@ -287,6 +287,51 @@ func TestGitHubSource_Name(t *testing.T) {
 	}
 }
 
+func TestGitHubSource_ForceRefresh(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "github-force-refresh-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	t.Run("ForceRefreshFlag", func(t *testing.T) {
+		source := NewGitHubSource("", tmpDir, 24*time.Hour, []string{})
+		source.SetForceRefresh(true)
+
+		if !source.forceRefresh {
+			t.Error("forceRefresh should be true")
+		}
+	})
+}
+
+func TestGitHubSource_LoadStaleCache(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "github-stale-cache-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	testRepos := []*types.Repository{
+		{Source: "github", URL: "https://github.com/test/repo1", Name: "test/repo1"},
+	}
+
+	source := NewGitHubSource("", tmpDir, 1*time.Millisecond, []string{})
+	source.saveCache(testRepos)
+	time.Sleep(5 * time.Millisecond) // Let cache expire
+
+	// loadStaleCache should return data regardless of TTL
+	repos, ok := source.loadStaleCache()
+	if !ok {
+		t.Fatal("loadStaleCache should return data even when expired")
+	}
+	if len(repos) != 1 {
+		t.Fatalf("expected 1 repo, got %d", len(repos))
+	}
+	if repos[0].URL != testRepos[0].URL {
+		t.Errorf("expected URL %q, got %q", testRepos[0].URL, repos[0].URL)
+	}
+}
+
 // Benchmark tests
 func BenchmarkCheckCache(b *testing.B) {
 	tmpDir, err := os.MkdirTemp("", "github-cache-bench")

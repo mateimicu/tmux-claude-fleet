@@ -15,12 +15,13 @@ import (
 
 // GitHubSource discovers repositories from GitHub
 type GitHubSource struct {
-	client   *http.Client
-	token    string
-	cacheDir string
-	orgs     []string
-	cacheTTL time.Duration
-	logger   io.Writer // Output for logging
+	client       *http.Client
+	token        string
+	cacheDir     string
+	orgs         []string
+	cacheTTL     time.Duration
+	logger       io.Writer // Output for logging
+	forceRefresh bool
 }
 
 // NewGitHubSource creates a new GitHub repository source
@@ -38,6 +39,30 @@ func NewGitHubSource(token, cacheDir string, cacheTTL time.Duration, orgs []stri
 // SetLogger sets the logger for this source
 func (g *GitHubSource) SetLogger(w io.Writer) {
 	g.logger = w
+}
+
+// SetForceRefresh enables force refresh mode.
+// When enabled, List() bypasses TTL and always attempts API fetch.
+// On API failure, it falls back to stale cached data.
+func (g *GitHubSource) SetForceRefresh(force bool) {
+	g.forceRefresh = force
+}
+
+// loadStaleCache loads cached data regardless of TTL expiration.
+func (g *GitHubSource) loadStaleCache() ([]*types.Repository, bool) {
+	cachePath := filepath.Join(g.cacheDir, "github-repos.json")
+
+	data, err := os.ReadFile(cachePath)
+	if err != nil {
+		return nil, false
+	}
+
+	var cache cacheData
+	if err := json.Unmarshal(data, &cache); err != nil {
+		return nil, false
+	}
+
+	return cache.Repos, true
 }
 
 // Name returns the source name
@@ -58,21 +83,31 @@ type cacheData struct {
 
 // List returns all repositories from GitHub
 func (g *GitHubSource) List(ctx context.Context) ([]*types.Repository, error) {
-	// Check cache
-	if repos, age, ok := g.checkCache(); ok {
-		if g.logger != nil {
-			fmt.Fprintf(g.logger, "  ✓ Using cached GitHub repos (age: %s)\n", formatDuration(age)) //nolint:errcheck // Logging output is non-critical
+	// If not force-refreshing, check cache normally
+	if !g.forceRefresh {
+		if repos, age, ok := g.checkCache(); ok {
+			if g.logger != nil {
+				fmt.Fprintf(g.logger, "  ✓ Using cached GitHub repos (age: %s)\n", formatDuration(age)) //nolint:errcheck // Logging output is non-critical
+			}
+			return g.filterByOrgs(repos), nil
 		}
-		// Apply organization filter to cached repos
-		return g.filterByOrgs(repos), nil
 	}
 
-	// Fetch from API (gets all repos)
+	// Fetch from API
 	if g.logger != nil {
 		fmt.Fprintf(g.logger, "  ⟳ Fetching GitHub repos from API...\n") //nolint:errcheck // Logging output is non-critical
 	}
 	repos, err := g.fetchFromAPI(ctx)
 	if err != nil {
+		// On force-refresh failure, fall back to stale cache
+		if g.forceRefresh {
+			if stale, ok := g.loadStaleCache(); ok {
+				if g.logger != nil {
+					fmt.Fprintf(g.logger, "  ⚠️ API fetch failed, using stale cache\n") //nolint:errcheck // Logging output is non-critical
+				}
+				return g.filterByOrgs(stale), nil
+			}
+		}
 		return nil, err
 	}
 
@@ -82,7 +117,6 @@ func (g *GitHubSource) List(ctx context.Context) ([]*types.Repository, error) {
 		fmt.Fprintf(g.logger, "  ✓ Cached %d repos for future use\n", len(repos)) //nolint:errcheck // Logging output is non-critical
 	}
 
-	// Apply organization filter before returning
 	return g.filterByOrgs(repos), nil
 }
 
