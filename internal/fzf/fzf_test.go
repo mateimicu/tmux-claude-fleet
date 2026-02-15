@@ -426,6 +426,20 @@ func TestParseFZFOutput(t *testing.T) {
 			wantKey:      "",
 			wantSelected: "ctrl-d-session-name",
 		},
+		{
+			name:         "ctrl-t pressed returns toggle key",
+			output:       "ctrl-t\n 01  🟢  github  org/repo  🟢 Active  [my-session]\n",
+			expectedKeys: []string{"ctrl-d", "ctrl-t"},
+			wantKey:      "ctrl-t",
+			wantSelected: "01  🟢  github  org/repo  🟢 Active  [my-session]",
+		},
+		{
+			name:         "ctrl-t with empty selection",
+			output:       "ctrl-t\n\n",
+			expectedKeys: []string{"ctrl-d", "ctrl-t"},
+			wantKey:      "ctrl-t",
+			wantSelected: "",
+		},
 	}
 
 	for _, tt := range tests {
@@ -445,6 +459,129 @@ func TestParseFZFOutput(t *testing.T) {
 				t.Errorf("parseFZFOutput() selected = %q, want %q", selected, tt.wantSelected)
 			}
 		})
+	}
+}
+
+func TestFilterActiveSessions(t *testing.T) {
+	tests := []struct {
+		name     string
+		sessions []*types.SessionStatus
+		wantLen  int
+	}{
+		{
+			name:     "empty input",
+			sessions: nil,
+			wantLen:  0,
+		},
+		{
+			name: "all active",
+			sessions: []*types.SessionStatus{
+				{Session: &types.Session{Name: "s1"}, TmuxActive: true},
+				{Session: &types.Session{Name: "s2"}, TmuxActive: true},
+			},
+			wantLen: 2,
+		},
+		{
+			name: "all inactive",
+			sessions: []*types.SessionStatus{
+				{Session: &types.Session{Name: "s1"}, TmuxActive: false},
+				{Session: &types.Session{Name: "s2"}, TmuxActive: false},
+			},
+			wantLen: 0,
+		},
+		{
+			name: "mixed active and inactive",
+			sessions: []*types.SessionStatus{
+				{Session: &types.Session{Name: "active1"}, TmuxActive: true},
+				{Session: &types.Session{Name: "inactive1"}, TmuxActive: false},
+				{Session: &types.Session{Name: "active2"}, TmuxActive: true},
+			},
+			wantLen: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := FilterActiveSessions(tt.sessions)
+			if len(result) != tt.wantLen {
+				t.Errorf("FilterActiveSessions() returned %d sessions, want %d", len(result), tt.wantLen)
+			}
+			for _, s := range result {
+				if !s.TmuxActive {
+					t.Errorf("FilterActiveSessions() returned inactive session %q", s.Session.Name)
+				}
+			}
+		})
+	}
+}
+
+func TestFilterActiveSessionsPreservesOrder(t *testing.T) {
+	sessions := []*types.SessionStatus{
+		{Session: &types.Session{Name: "a"}, TmuxActive: true},
+		{Session: &types.Session{Name: "b"}, TmuxActive: false},
+		{Session: &types.Session{Name: "c"}, TmuxActive: true},
+		{Session: &types.Session{Name: "d"}, TmuxActive: false},
+		{Session: &types.Session{Name: "e"}, TmuxActive: true},
+	}
+
+	result := FilterActiveSessions(sessions)
+	if len(result) != 3 {
+		t.Fatalf("expected 3 sessions, got %d", len(result))
+	}
+	wantNames := []string{"a", "c", "e"}
+	for i, want := range wantNames {
+		if result[i].Session.Name != want {
+			t.Errorf("result[%d].Name = %q, want %q", i, result[i].Session.Name, want)
+		}
+	}
+}
+
+func TestSessionLegend(t *testing.T) {
+	tests := []struct {
+		name           string
+		showActiveOnly bool
+		wantContains   []string
+		wantNotContain []string
+	}{
+		{
+			name:           "default view shows hide inactive hint",
+			showActiveOnly: false,
+			wantContains:   []string{"ctrl-t: hide inactive", "enter: switch", "ctrl-d: delete"},
+			wantNotContain: []string{"ctrl-t: show all"},
+		},
+		{
+			name:           "filtered view shows show all hint",
+			showActiveOnly: true,
+			wantContains:   []string{"ctrl-t: show all", "enter: switch", "ctrl-d: delete"},
+			wantNotContain: []string{"ctrl-t: hide inactive"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			legend := sessionLegend(tt.showActiveOnly)
+			for _, want := range tt.wantContains {
+				if !strings.Contains(legend, want) {
+					t.Errorf("sessionLegend(%v) should contain %q, got %q", tt.showActiveOnly, want, legend)
+				}
+			}
+			for _, notWant := range tt.wantNotContain {
+				if strings.Contains(legend, notWant) {
+					t.Errorf("sessionLegend(%v) should NOT contain %q, got %q", tt.showActiveOnly, notWant, legend)
+				}
+			}
+		})
+	}
+}
+
+func TestSessionLegendAlwaysContainsEmojiLegend(t *testing.T) {
+	for _, showActiveOnly := range []bool{true, false} {
+		legend := sessionLegend(showActiveOnly)
+		for _, want := range []string{"🟢 active", "⚫ inactive", "🟢 Active", "❓ Waiting", "💬 Ready", "⚠️ Error", "⚫ Stopped", "❔ Unknown"} {
+			if !strings.Contains(legend, want) {
+				t.Errorf("sessionLegend(%v) should always contain %q", showActiveOnly, want)
+			}
+		}
 	}
 }
 
