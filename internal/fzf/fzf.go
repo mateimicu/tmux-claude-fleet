@@ -11,27 +11,35 @@ import (
 	"github.com/mateimicu/tmux-claude-matrix/pkg/types"
 )
 
-// SelectRepository shows FZF interface for repo selection
-func SelectRepository(repos []*types.Repository) (*types.Repository, error) {
+// buildRepoFZFArgs returns the FZF arguments for repository selection.
+// The binaryPath is used to construct the Ctrl+R reload command.
+func buildRepoFZFArgs(binaryPath string) []string {
+	reloadCmd := fmt.Sprintf("%s list-repos --force-refresh", binaryPath)
+	return []string{
+		"--prompt=📁 Select repository > ",
+		"--reverse",
+		"--border=rounded",
+		"--header=↑↓ navigate | enter: select | ctrl-r: refresh | ctrl-c: cancel",
+		"--height=80%",
+		fmt.Sprintf("--bind=ctrl-r:reload(%s)+change-header(Refreshing repositories...)", reloadCmd),
+	}
+}
+
+// SelectRepository shows FZF interface for repo selection.
+// binaryPath is the path to the claude-matrix binary, used for the Ctrl+R reload binding.
+func SelectRepository(repos []*types.Repository, binaryPath string) (*types.Repository, error) {
 	if len(repos) == 0 {
 		return nil, fmt.Errorf("no repositories found")
 	}
 
-	// Format repos for display
 	var lines []string
 	for _, repo := range repos {
 		line := FormatRepoLine(repo)
 		lines = append(lines, line)
 	}
 
-	// Run FZF
-	selected, err := runFZF(strings.Join(lines, "\n"),
-		"--prompt=📁 Select repository > ",
-		"--reverse",
-		"--border=rounded",
-		"--header=↑↓ navigate | enter: select | ctrl-c: cancel",
-		"--height=80%",
-	)
+	args := buildRepoFZFArgs(binaryPath)
+	selected, err := runFZF(strings.Join(lines, "\n"), args...)
 	if err != nil {
 		return nil, err
 	}

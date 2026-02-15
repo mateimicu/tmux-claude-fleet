@@ -470,6 +470,33 @@ func TestFilterFZFEnv(t *testing.T) {
 	}
 }
 
+func TestBuildRepoFZFArgs(t *testing.T) {
+	args := buildRepoFZFArgs("/usr/local/bin/claude-matrix")
+
+	hasReload := false
+	hasHeader := false
+	for _, arg := range args {
+		if strings.Contains(arg, "ctrl-r:reload") {
+			hasReload = true
+			if !strings.Contains(arg, "/usr/local/bin/claude-matrix") {
+				t.Errorf("reload binding should contain binary path, got %q", arg)
+			}
+			if !strings.Contains(arg, "--force-refresh") {
+				t.Errorf("reload binding should contain --force-refresh, got %q", arg)
+			}
+		}
+		if strings.Contains(arg, "ctrl-r") && strings.Contains(arg, "refresh") && strings.HasPrefix(arg, "--header=") {
+			hasHeader = true
+		}
+	}
+	if !hasReload {
+		t.Error("FZF args should contain ctrl-r reload binding")
+	}
+	if !hasHeader {
+		t.Error("FZF header should mention ctrl-r refresh")
+	}
+}
+
 func TestExtractSessionName(t *testing.T) {
 	tests := []struct {
 		name     string
