@@ -330,7 +330,7 @@ func TestFormatRepoLine(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := formatRepoLine(tt.repo)
+			result := FormatRepoLine(tt.repo)
 			for _, want := range tt.wantContains {
 				if !strings.Contains(result, want) {
 					t.Errorf("formatRepoLine() = %q, should contain %q", result, want)
