@@ -1,0 +1,62 @@
+package main
+
+import (
+	"context"
+	"io"
+	"testing"
+
+	"github.com/mateimicu/tmux-claude-matrix/pkg/types"
+)
+
+func TestBuildSources_LocalOnly(t *testing.T) {
+	cfg := &types.Config{
+		LocalConfigEnabled: true,
+		LocalReposFile:     "/tmp/nonexistent-repos.txt",
+		GitHubEnabled:      false,
+		WorkspacesEnabled:  false,
+	}
+
+	sources, err := buildSources(context.Background(), cfg, io.Discard)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(sources) != 1 {
+		t.Fatalf("expected 1 source, got %d", len(sources))
+	}
+
+	if sources[0].Name() != "local" {
+		t.Errorf("expected source name 'local', got '%s'", sources[0].Name())
+	}
+}
+
+func TestBuildSources_NoSourcesConfigured(t *testing.T) {
+	cfg := &types.Config{
+		LocalConfigEnabled: false,
+		GitHubEnabled:      false,
+		WorkspacesEnabled:  false,
+	}
+
+	_, err := buildSources(context.Background(), cfg, io.Discard)
+	if err == nil {
+		t.Fatal("expected error when no sources configured")
+	}
+}
+
+func TestBuildSources_WorkspacesEnabled(t *testing.T) {
+	cfg := &types.Config{
+		WorkspacesEnabled:  true,
+		WorkspacesFile:     "/tmp/nonexistent-workspaces.yaml",
+		LocalConfigEnabled: false,
+		GitHubEnabled:      false,
+	}
+
+	sources, err := buildSources(context.Background(), cfg, io.Discard)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(sources) != 1 {
+		t.Fatalf("expected 1 source, got %d", len(sources))
+	}
+}
