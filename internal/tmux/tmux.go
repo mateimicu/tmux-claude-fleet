@@ -211,7 +211,7 @@ func (m *Manager) GetDetailedClaudeState(session string) (types.ClaudeState, tim
 	// Try state file first (written by Claude Code hooks)
 	statusDir := status.DefaultStatusDir()
 	if sf, err := status.ReadState(statusDir, session); err == nil {
-		if !status.IsStale(sf, 5*time.Minute) {
+		if !status.IsStale(sf, status.DefaultStaleThreshold) {
 			state := types.ClaudeState(sf.State)
 			if isValidClaudeState(state) {
 				return state, sf.UpdatedAt

@@ -142,8 +142,10 @@ func handleDeleteAction(sessionMgr *session.Manager, tmuxMgr *tmux.Manager, sele
 		return fmt.Errorf("failed to delete session metadata: %w", err)
 	}
 
-	// Clean up status file
-	status.RemoveState(status.DefaultStatusDir(), sess.Name) //nolint:errcheck // Best-effort cleanup
+	// Clean up status files (aggregate + per-agent)
+	statusDir := status.DefaultStatusDir()
+	status.RemoveAllAgentStates(statusDir, sess.Name) //nolint:errcheck // Best-effort cleanup
+	status.RemoveState(statusDir, sess.Name)          //nolint:errcheck // Best-effort cleanup
 
 	fmt.Printf("✓ Session '%s' deleted successfully!\n\n", sess.Name)
 	return nil
