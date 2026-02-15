@@ -8,7 +8,11 @@ import (
 	"strings"
 )
 
-const hookMarker = "--from=tmux-claude-matrix"
+// HookMarker is the CLI flag appended to the hook-handler command so that our
+// entries can be identified in Claude's settings.json. It is exported so that
+// cmd/claude-matrix can write a contract test verifying the cobra command
+// accepts whatever marker the registration side generates.
+const HookMarker = "--from=tmux-claude-matrix"
 
 // hookEventDefs defines the hook events we register, with optional matchers.
 var hookEventDefs = []struct {
@@ -52,7 +56,7 @@ func setupHooksToFile(binaryPath, settingsPath string) error {
 	}
 
 	hooks := ensureHooksMap(settings)
-	command := binaryPath + " hook-handler " + hookMarker
+	command := binaryPath + " hook-handler " + HookMarker
 
 	for _, def := range hookEventDefs {
 		entries := getEventEntries(hooks, def.event)
@@ -119,7 +123,7 @@ func isSetupInFile(binaryPath, settingsPath string) (bool, error) {
 		return false, nil
 	}
 
-	command := binaryPath + " hook-handler " + hookMarker
+	command := binaryPath + " hook-handler " + HookMarker
 	for _, def := range hookEventDefs {
 		entries := getEventEntries(hooks, def.event)
 		if hasOurHook(entries, command) {
@@ -235,7 +239,7 @@ func hasOurHook(entries []interface{}, command string) bool {
 
 // containsMarker checks if a command string contains our hook marker.
 func containsMarker(cmd string) bool {
-	return strings.Contains(cmd, hookMarker)
+	return strings.Contains(cmd, HookMarker)
 }
 
 // filterOutOurEntries removes entries whose hooks contain our marker.

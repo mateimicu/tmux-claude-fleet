@@ -10,7 +10,7 @@ import (
 )
 
 func hookHandlerCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:    "hook-handler",
 		Short:  "Handle Claude Code hook events (internal use)",
 		Hidden: true,
@@ -18,4 +18,9 @@ func hookHandlerCmd() *cobra.Command {
 			return hooks.HandleHookEvent(os.Stdin, tmux.New())
 		},
 	}
+	// The --from flag is used as a marker in the registered hook command
+	// (e.g. "claude-matrix hook-handler --from=tmux-claude-matrix") so that
+	// our entries can be identified and managed in Claude's settings.json.
+	cmd.Flags().String("from", "", "Hook source identifier (used as marker)")
+	return cmd
 }
