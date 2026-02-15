@@ -37,6 +37,11 @@ func runCreate(ctx context.Context) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
+	// Check FZF version before any network I/O (fail-fast)
+	if err := fzf.CheckFZFVersion(); err != nil {
+		return err
+	}
+
 	// Build sources list
 	sources, err := buildSources(ctx, cfg, os.Stdout)
 	if err != nil {
@@ -60,11 +65,6 @@ func runCreate(ctx context.Context) error {
 	}
 
 	fmt.Printf("✓ Found %d repositories\n", len(repoList))
-
-	// Check FZF version before launching selection UI
-	if err := fzf.CheckFZFVersion(); err != nil {
-		return err
-	}
 
 	// Get binary path for FZF reload
 	binaryPath, err := os.Executable()

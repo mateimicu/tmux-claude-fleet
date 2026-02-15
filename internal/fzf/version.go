@@ -46,7 +46,7 @@ func ParseFZFVersion(versionOutput string) (major, minor, patch int, err error) 
 }
 
 // isVersionSufficient returns true if the given version meets the
-// minimum required fzf version (0.40.0).
+// minimum required fzf version defined by the MinFZF* constants.
 func isVersionSufficient(major, minor, patch int) bool {
 	if major != MinFZFMajor {
 		return major > MinFZFMajor
@@ -72,8 +72,8 @@ func CheckFZFVersion() error {
 
 	if !isVersionSufficient(major, minor, patch) {
 		return fmt.Errorf(
-			"fzf version %d.%d.%d is installed, but version 0.40.0 or later is required. Please upgrade: brew upgrade fzf",
-			major, minor, patch,
+			"fzf version %d.%d.%d is installed, but version %d.%d.%d or later is required. Please upgrade: brew upgrade fzf",
+			major, minor, patch, MinFZFMajor, MinFZFMinor, MinFZFPatch,
 		)
 	}
 
