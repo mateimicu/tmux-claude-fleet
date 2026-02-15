@@ -38,6 +38,9 @@ func runList(_ context.Context) error {
 	sessionMgr := session.NewManager(cfg.SessionsDir)
 	tmuxMgr := tmux.New()
 
+	// Toggle state for hiding inactive sessions (resets each invocation)
+	showActiveOnly := false
+
 	// Main loop - continue showing list until user exits or switches
 	for {
 		// Load sessions
@@ -86,14 +89,30 @@ func runList(_ context.Context) error {
 			statusList = append(statusList, sessStatus)
 		}
 
+		// Apply active-only filter if toggled on
+		displayList := statusList
+		if showActiveOnly {
+			filtered := fzf.FilterActiveSessions(statusList)
+			if len(filtered) == 0 {
+				showActiveOnly = false
+				fmt.Println("⚠️  No active sessions to filter, showing all sessions.")
+			} else {
+				displayList = filtered
+			}
+		}
+
 		// Show FZF selection with action support
-		selection, err := fzf.SelectSessionWithAction(statusList)
+		selection, err := fzf.SelectSessionWithAction(displayList, showActiveOnly)
 		if err != nil {
 			return fmt.Errorf("session selection cancelled: %w", err)
 		}
 
 		// Handle action
 		switch selection.Action {
+		case fzf.SessionActionToggleFilter:
+			showActiveOnly = !showActiveOnly
+			continue
+
 		case fzf.SessionActionDelete:
 			if err := handleDeleteAction(sessionMgr, tmuxMgr, selection.Session); err != nil {
 				fmt.Printf("⚠️  Failed to delete session: %v\n", err)

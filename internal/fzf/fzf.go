@@ -69,6 +69,8 @@ const (
 	SessionActionDelete SessionAction = "delete"
 	// SessionActionCancel indicates cancelling the selection
 	SessionActionCancel SessionAction = "cancel"
+	// SessionActionToggleFilter indicates toggling the active-only filter
+	SessionActionToggleFilter SessionAction = "toggle_filter"
 )
 
 // SessionSelection represents the result of session selection
@@ -77,20 +79,51 @@ type SessionSelection struct {
 	Action  SessionAction
 }
 
-// SelectSession shows FZF interface for session selection
-func SelectSession(sessions []*types.SessionStatus) (*types.SessionStatus, error) {
-	selection, err := SelectSessionWithAction(sessions)
-	if err != nil {
-		return nil, err
+// FilterActiveSessions returns only sessions with TmuxActive=true.
+func FilterActiveSessions(sessions []*types.SessionStatus) []*types.SessionStatus {
+	var active []*types.SessionStatus
+	for _, s := range sessions {
+		if s.TmuxActive {
+			active = append(active, s)
+		}
 	}
-	if selection.Action == SessionActionCancel {
-		return nil, fmt.Errorf("selection cancelled")
-	}
-	return selection.Session, nil
+	return active
 }
 
-// SelectSessionWithAction shows FZF interface for session selection with action support
-func SelectSessionWithAction(sessions []*types.SessionStatus) (*SessionSelection, error) {
+// sessionLegend returns the FZF header legend, with the ctrl-t hint
+// reflecting the current filter state.
+func sessionLegend(showActiveOnly bool) string {
+	toggleHint := "ctrl-t: hide inactive"
+	if showActiveOnly {
+		toggleHint = "ctrl-t: show all"
+	}
+	return "↑↓ navigate | enter: switch | ctrl-d: delete | " + toggleHint + " | ctrl-c: cancel\n" +
+		"Session: 🟢 active  ⚫ inactive | Claude: 🟢 Active  ❓ Waiting  💬 Ready  ⚠️ Error  ⚫ Stopped  ❔ Unknown"
+}
+
+// SelectSession shows FZF interface for session selection.
+// It re-prompts on toggle actions since the simplified API does not
+// expose filtering to the caller.
+func SelectSession(sessions []*types.SessionStatus) (*types.SessionStatus, error) {
+	for {
+		selection, err := SelectSessionWithAction(sessions, false)
+		if err != nil {
+			return nil, err
+		}
+		switch selection.Action {
+		case SessionActionCancel:
+			return nil, fmt.Errorf("selection cancelled")
+		case SessionActionToggleFilter:
+			continue
+		default:
+			return selection.Session, nil
+		}
+	}
+}
+
+// SelectSessionWithAction shows FZF interface for session selection with action support.
+// showActiveOnly controls the ctrl-t legend hint text.
+func SelectSessionWithAction(sessions []*types.SessionStatus, showActiveOnly bool) (*SessionSelection, error) {
 	if len(sessions) == 0 {
 		return nil, fmt.Errorf("no sessions found")
 	}
@@ -109,11 +142,10 @@ func SelectSessionWithAction(sessions []*types.SessionStatus) (*SessionSelection
 	allLines := append([]string{headerLine}, lines...)
 
 	// Run FZF with action keys
-	legend := "↑↓ navigate | enter: switch | ctrl-d: delete | ctrl-c: cancel\n" +
-		"Session: 🟢 active  ⚫ inactive | Claude: 🟢 Active  ❓ Waiting  💬 Ready  ⚠️ Error  ⚫ Stopped  ❔ Unknown"
+	legend := sessionLegend(showActiveOnly)
 	key, selected, err := runFZFWithExpect(
 		strings.Join(allLines, "\n"),
-		[]string{"ctrl-d"},
+		[]string{"ctrl-d", "ctrl-t"},
 		"--prompt=🚀 Select session > ",
 		"--reverse",
 		"--border=rounded",
@@ -123,6 +155,11 @@ func SelectSessionWithAction(sessions []*types.SessionStatus) (*SessionSelection
 	)
 	if err != nil {
 		return &SessionSelection{Action: SessionActionCancel}, err
+	}
+
+	// ctrl-t toggles the active-only filter; no session needed
+	if key == "ctrl-t" {
+		return &SessionSelection{Action: SessionActionToggleFilter}, nil
 	}
 
 	// Extract session name from selected line
