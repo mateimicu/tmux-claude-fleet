@@ -141,6 +141,9 @@ func UpdateAggregate(statusDir, sessionName string, staleThreshold time.Duration
 		return types.ClaudeStateStopped, err
 	}
 
+	// Start with Stopped so that only states with higher attention priority
+	// (Idle, Running, WaitingForInput, Error) produce an aggregate file.
+	// If only Stopped or Unknown agents remain, the aggregate is removed.
 	bestState := types.ClaudeStateStopped
 
 	for _, f := range files {
@@ -166,12 +169,21 @@ func UpdateAggregate(statusDir, sessionName string, staleThreshold time.Duration
 }
 
 func stateFilePath(statusDir, sessionName string) string {
-	return filepath.Join(statusDir, sessionName+".state")
+	return filepath.Join(statusDir, sanitizeSessionName(sessionName)+".state")
 }
 
 func agentStateFilePath(statusDir, sessionName, agentSessionID string) string {
 	safe := sanitizeAgentID(agentSessionID)
-	return filepath.Join(statusDir, sessionName+".agent."+safe+".state")
+	return filepath.Join(statusDir, sanitizeSessionName(sessionName)+".agent."+safe+".state")
+}
+
+// sanitizeSessionName strips path components to prevent directory traversal.
+func sanitizeSessionName(name string) string {
+	name = filepath.Base(name)
+	if name == "." || name == ".." || name == "" {
+		return "_"
+	}
+	return name
 }
 
 // sanitizeAgentID strips path components to prevent directory traversal.
@@ -184,7 +196,7 @@ func sanitizeAgentID(id string) string {
 }
 
 func listAgentStateFiles(statusDir, sessionName string) ([]string, error) {
-	pattern := filepath.Join(statusDir, sessionName+".agent.*.state")
+	pattern := filepath.Join(statusDir, sanitizeSessionName(sessionName)+".agent.*.state")
 	return filepath.Glob(pattern)
 }
 

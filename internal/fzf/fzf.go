@@ -17,6 +17,9 @@ import (
 func buildRepoFZFArgs(binaryPath string) []string {
 	quoted := "'" + strings.ReplaceAll(binaryPath, "'", "'\\''") + "'"
 	reloadCmd := fmt.Sprintf("%s list-repos --force-refresh", quoted)
+	// Escape parentheses for FZF's action parser, which uses ( and ) as delimiters
+	// in reload(...) and change-header(...) before the shell sees the string.
+	fzfSafeReloadCmd := strings.NewReplacer("(", "\\(", ")", "\\)").Replace(reloadCmd)
 	header := "↑↓ navigate | enter: select | ctrl-r: refresh | ctrl-c: cancel"
 	return []string{
 		"--prompt=📁 Select repository > ",
@@ -24,7 +27,7 @@ func buildRepoFZFArgs(binaryPath string) []string {
 		"--border=rounded",
 		"--header=" + header,
 		"--height=80%",
-		fmt.Sprintf("--bind=ctrl-r:change-header(Refreshing repositories...)+reload(%s)+change-header(%s)", reloadCmd, header),
+		fmt.Sprintf("--bind=ctrl-r:change-header(Refreshing repositories...)+reload(%s)+change-header(%s)", fzfSafeReloadCmd, header),
 	}
 }
 
@@ -350,6 +353,7 @@ func runFZF(input string, args ...string) (string, error) {
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = os.Stderr
+	cmd.Env = filterFZFEnv(os.Environ())
 
 	if err := cmd.Run(); err != nil {
 		return "", err

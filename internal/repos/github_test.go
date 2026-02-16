@@ -307,11 +307,7 @@ func TestGitHubSource_Name(t *testing.T) {
 }
 
 func TestGitHubSource_ForceRefresh(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "github-force-refresh-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	t.Run("ForceRefreshFlag", func(t *testing.T) {
 		source := NewGitHubSource("", tmpDir, 24*time.Hour, []string{})
@@ -324,11 +320,7 @@ func TestGitHubSource_ForceRefresh(t *testing.T) {
 }
 
 func TestGitHubSource_StaleCacheViaCheckCache(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "github-stale-cache-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	testRepos := []*types.Repository{
 		{Source: "github", URL: "https://github.com/test/repo1", Name: "test/repo1"},

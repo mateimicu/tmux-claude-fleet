@@ -29,8 +29,6 @@ func TestListReposCmd_Structure(t *testing.T) {
 func TestListReposCmd_ForceRefreshFlagParsing(t *testing.T) {
 	cmd := listReposCmd()
 
-	// Simulate passing --force-refresh
-	cmd.SetArgs([]string{"--force-refresh"})
 	if err := cmd.ParseFlags([]string{"--force-refresh"}); err != nil {
 		t.Fatalf("failed to parse --force-refresh flag: %v", err)
 	}

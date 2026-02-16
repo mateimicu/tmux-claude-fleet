@@ -333,7 +333,7 @@ func TestFormatRepoLine(t *testing.T) {
 			result := FormatRepoLine(tt.repo)
 			for _, want := range tt.wantContains {
 				if !strings.Contains(result, want) {
-					t.Errorf("formatRepoLine() = %q, should contain %q", result, want)
+					t.Errorf("FormatRepoLine() = %q, should contain %q", result, want)
 				}
 			}
 		})
@@ -683,6 +683,19 @@ func TestBuildRepoFZFArgs(t *testing.T) {
 				// The quote should be escaped as '\''
 				if !strings.Contains(arg, "'/Users/O'\\''Brien/bin/claude-matrix'") {
 					t.Errorf("single quote in path should be escaped, got %q", arg)
+				}
+			}
+		}
+	})
+
+	t.Run("PathWithParentheses", func(t *testing.T) {
+		args := buildRepoFZFArgs("/Users/test(1)/bin/claude-matrix")
+
+		for _, arg := range args {
+			if strings.Contains(arg, "reload(") && strings.Contains(arg, "ctrl-r:") {
+				// Parentheses in the path should be escaped for FZF
+				if !strings.Contains(arg, "\\(") || !strings.Contains(arg, "\\)") {
+					t.Errorf("parentheses in path should be escaped for FZF, got %q", arg)
 				}
 			}
 		}

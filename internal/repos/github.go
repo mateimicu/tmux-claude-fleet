@@ -133,19 +133,17 @@ func (g *GitHubSource) fetchFromAPI(ctx context.Context) ([]*types.Repository, e
 		if err != nil {
 			return nil, err
 		}
-		defer func() {
-			if cerr := resp.Body.Close(); cerr != nil && err == nil {
-				err = cerr
-			}
-		}()
 
 		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close() //nolint:errcheck // Already returning an error
 			return nil, fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
 		}
 
 		var ghRepos []ghRepo
-		if err := json.NewDecoder(resp.Body).Decode(&ghRepos); err != nil {
-			return nil, err
+		decodeErr := json.NewDecoder(resp.Body).Decode(&ghRepos)
+		resp.Body.Close() //nolint:errcheck // Close error is non-critical after reading
+		if decodeErr != nil {
+			return nil, decodeErr
 		}
 
 		if len(ghRepos) == 0 {
