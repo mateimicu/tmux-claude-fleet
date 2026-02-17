@@ -1,47 +1,49 @@
-# PRD: Fix List View Counter Bug
+# PRD: Fix List View Display and Tmux Status Variable
 
 ## Goal
 
-Fix the list view so that the REPOSITORY column shows the plain repo name without a numeric counter suffix, and change the `@claude-matrix-title` tmux variable to store the session name instead of the display title. Remove the now-unused `Title` field and `GenerateTitle()` function.
+Fix the list view so that the REPOSITORY column shows the plain repo name (no counter), add a separate TITLE column for the customizable display name, and change `@claude-matrix-title` to default to the session name on creation (while remaining overridable via rename). Add a Ctrl+R shortcut in the list view to rename sessions inline.
 
 ## Background
 
-The FZF list view currently displays the session `Title` (e.g., `mateimicu/tmux-claude-matrix #1`) in the REPOSITORY column. This is confusing because the counter makes it look like the repo itself is numbered. Only the session (shown in the SESSION column as `[org-repo-1]`) should carry a distinguishing counter.
+The FZF list view currently shows the session `Title` (e.g., `mateimicu/tmux-claude-matrix #1`) in the REPOSITORY column. This is confusing because:
+- The counter makes it look like the repo itself is numbered
+- The repo name and the customizable title are conflated into one column
 
-Additionally, the `@claude-matrix-title` tmux user variable is set to the session title (e.g., `mateimicu/tmux-claude-matrix #1`). It should store the tmux session name (e.g., `mateimicu-tmux-claude-matrix-1`) so that status bar integrations reference the session, not the repo.
+Additionally, `@claude-matrix-title` is set to the session title (e.g., `mateimicu/tmux-claude-matrix #1`). It should default to the tmux session name (e.g., `mateimicu-tmux-claude-matrix-1`) so status bar integrations reference the session by default. Users can override this via the rename command.
 
 ## Requirements
 
-1. **List view REPOSITORY column must show plain repo name** — Display `orgRepo` from `parseRepoURL()` without any counter suffix. Remove the fallback to `Session.Title` in `formatSessionTable()` (`internal/fzf/fzf.go:239-243`).
+1. **REPOSITORY column shows plain repo name** - Display `orgRepo` from `parseRepoURL()` without any `#N` counter suffix. Do not fall back to `Session.Title` in `formatSessionTable()` (`internal/fzf/fzf.go:239-243`).
 
-2. **`@claude-matrix-title` must store the session name** — All `SetSessionEnv` calls that set `@claude-matrix-title` must pass the session name (e.g., `mateimicu-tmux-claude-matrix-1`), not the title. Affected call sites:
-   - `cmd/claude-matrix/create.go:131` (regular repo creation)
-   - `cmd/claude-matrix/create.go:201` (workspace creation)
-   - `cmd/claude-matrix/list.go:193` (session switch/recreation)
-   - `cmd/claude-matrix/rename.go:69` (rename command)
+2. **Add a TITLE column to the list view** - A new column in the FZF table that displays `Session.Title`. This column shows the customizable display name (which defaults to the session name on creation, and can be changed via rename).
 
-3. **Remove `Title` field from `Session` struct** — Delete `Title string` from `types.Session` in `pkg/types/types.go:19`. Existing JSON metadata files with a `title` key should deserialize without error (Go ignores unknown JSON fields by default).
+3. **`@claude-matrix-title` defaults to session name on create** - In `cmd/claude-matrix/create.go`, set `@claude-matrix-title` to the session name (e.g., `mateimicu-tmux-claude-matrix-1`) instead of the generated title. Also set `Session.Title` to the session name as the default.
 
-4. **Remove `GenerateTitle()` function** — Delete `GenerateTitle()` from `internal/session/session.go:91-105` and its tests.
+4. **`@claude-matrix-title` reflects the current title on switch** - In `cmd/claude-matrix/list.go` (`handleSwitchAction`), set `@claude-matrix-title` to `Session.Title` (which is either the default session name or a user-renamed value).
 
-5. **Remove all `Title` references in create and list commands** — Delete the `title`/`wsTitle` variables and their usage in `create.go` and `list.go`.
+5. **Rename command updates both `Session.Title` and `@claude-matrix-title`** - The existing rename command in `cmd/claude-matrix/rename.go` should continue to work as-is: it updates `Session.Title` and sets `@claude-matrix-title` to the user-provided title.
 
-6. **Remove the `rename` command** — The `rename` command currently sets the `Title` field. Since `Title` is being removed, the rename command should be removed entirely. Users can identify sessions by the SESSION column name.
+6. **Add Ctrl+R shortcut in list view for inline rename** - In the FZF interactive UI (`internal/fzf/fzf.go`), add a `ctrl-r` key binding that triggers a rename action for the selected session. This should prompt for a new title and update both `Session.Title` and `@claude-matrix-title`.
+
+7. **Remove `GenerateTitle()` usage for default titles** - On session creation, use the session name as the default title instead of calling `GenerateTitle()`. The `GenerateTitle()` function can be removed if no longer needed elsewhere.
 
 ## Acceptance Criteria
 
-- [ ] `formatSessionTable()` REPOSITORY column shows `orgRepo` from `parseRepoURL()` only (no `#N` suffix)
-- [ ] `@claude-matrix-title` tmux variable is set to the session name (e.g., `mateimicu-tmux-claude-matrix-1`) at all call sites
-- [ ] `Session.Title` field is removed from `pkg/types/types.go`
-- [ ] `GenerateTitle()` is removed from `internal/session/session.go`
-- [ ] Existing session metadata JSON files with a `title` key still load without error
-- [ ] `rename` command is removed from CLI
-- [ ] All existing tests pass; new tests cover the updated display and variable behavior
+- [ ] REPOSITORY column in list view shows `org/repo` (e.g., `mateimicu/tmux-claude-matrix`) without any `#N` suffix
+- [ ] A new TITLE column appears in the list view showing the session's customizable title
+- [ ] On session creation, `@claude-matrix-title` is set to the session name
+- [ ] On session creation, `Session.Title` defaults to the session name
+- [ ] On session switch (list view), `@claude-matrix-title` is set to `Session.Title`
+- [ ] Rename command continues to update both `Session.Title` and `@claude-matrix-title`
+- [ ] Ctrl+R in list view triggers rename for the selected session
+- [ ] Existing tests pass; new/updated tests cover the changed display logic
 - [ ] `make check` (lint + test) passes cleanly
 
 ## Out of Scope
 
-- Changing the session naming scheme (`GenerateUniqueName` / `sanitizeName`)
-- Changing the FZF column layout or adding new columns
-- Migrating existing session metadata files (removing the `title` key from on-disk JSON)
+- Changing `GenerateUniqueName()` or `sanitizeName()` logic
+- Changing the tmux status bar template configuration
+- Changing how Claude state indicators are displayed
+- Migrating existing session metadata JSON files
 - Changing the `@claude-matrix-title` variable name itself
