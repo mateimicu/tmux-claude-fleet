@@ -9,8 +9,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mateimicu/tmux-claude-matrix/internal/config"
 	"github.com/mateimicu/tmux-claude-matrix/internal/fzf"
+	"github.com/mateimicu/tmux-claude-matrix/internal/logging"
 	"github.com/mateimicu/tmux-claude-matrix/internal/session"
 	"github.com/mateimicu/tmux-claude-matrix/internal/status"
 	"github.com/mateimicu/tmux-claude-matrix/internal/tmux"
@@ -28,12 +28,9 @@ func listCmd() *cobra.Command {
 	}
 }
 
-func runList(_ context.Context) error {
-	// Load config
-	cfg, err := config.Load()
-	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
+func runList(ctx context.Context) error {
+	cfg := configFromContext(ctx)
+	log := loggerFromContext(ctx)
 
 	sessionMgr := session.NewManager(cfg.SessionsDir)
 	tmuxMgr := tmux.New()
@@ -95,7 +92,7 @@ func runList(_ context.Context) error {
 			filtered := fzf.FilterActiveSessions(statusList)
 			if len(filtered) == 0 {
 				showActiveOnly = false
-				fmt.Println("⚠️  No active sessions to filter, showing all sessions.")
+				fmt.Fprintln(log.WarnW, "⚠️  No active sessions to filter, showing all sessions.") //nolint:errcheck
 			} else {
 				displayList = filtered
 			}
@@ -114,8 +111,8 @@ func runList(_ context.Context) error {
 			continue
 
 		case fzf.SessionActionDelete:
-			if err := handleDeleteAction(sessionMgr, tmuxMgr, selection.Session); err != nil {
-				fmt.Printf("⚠️  Failed to delete session: %v\n", err)
+			if err := handleDeleteAction(sessionMgr, tmuxMgr, selection.Session, log); err != nil {
+				fmt.Fprintf(log.WarnW, "⚠️  Failed to delete session: %v\n", err) //nolint:errcheck
 			}
 			// Continue loop to show updated list
 
@@ -126,7 +123,7 @@ func runList(_ context.Context) error {
 			// Continue loop to show updated list
 
 		case fzf.SessionActionSwitch:
-			if err := handleSwitchAction(cfg, tmuxMgr, selection.Session); err != nil {
+			if err := handleSwitchAction(cfg, tmuxMgr, selection.Session, log); err != nil {
 				return err
 			}
 			// Exit after switching
@@ -138,7 +135,7 @@ func runList(_ context.Context) error {
 	}
 }
 
-func handleDeleteAction(sessionMgr *session.Manager, tmuxMgr *tmux.Manager, selected *types.SessionStatus) error {
+func handleDeleteAction(sessionMgr *session.Manager, tmuxMgr *tmux.Manager, selected *types.SessionStatus, log *logging.Logger) error {
 	sess := selected.Session
 
 	// Ask for confirmation
@@ -156,9 +153,9 @@ func handleDeleteAction(sessionMgr *session.Manager, tmuxMgr *tmux.Manager, sele
 
 	// Kill tmux session if active
 	if tmuxMgr.SessionExists(sess.Name) {
-		fmt.Printf("🛑 Killing tmux session '%s'...\n", sess.Name)
+		fmt.Fprintf(log.DebugW, "🛑 Killing tmux session '%s'...\n", sess.Name) //nolint:errcheck
 		if err := tmuxMgr.KillSession(sess.Name); err != nil {
-			fmt.Printf("⚠️  Failed to kill tmux session: %v\n", err)
+			fmt.Fprintf(log.WarnW, "⚠️  Failed to kill tmux session: %v\n", err) //nolint:errcheck
 		}
 	}
 
@@ -172,17 +169,17 @@ func handleDeleteAction(sessionMgr *session.Manager, tmuxMgr *tmux.Manager, sele
 	status.RemoveAllAgentStates(statusDir, sess.Name) //nolint:errcheck // Best-effort cleanup
 	status.RemoveState(statusDir, sess.Name)          //nolint:errcheck // Best-effort cleanup
 
-	fmt.Printf("✓ Session '%s' deleted successfully!\n\n", sess.Name)
+	fmt.Fprintf(log.DebugW, "✓ Session '%s' deleted successfully!\n\n", sess.Name) //nolint:errcheck
 	return nil
 }
 
-func handleSwitchAction(cfg *types.Config, tmuxMgr *tmux.Manager, selected *types.SessionStatus) error {
+func handleSwitchAction(cfg *types.Config, tmuxMgr *tmux.Manager, selected *types.SessionStatus, log *logging.Logger) error {
 	// Switch to session
-	fmt.Printf("🚀 Switching to session '%s'...\n", selected.Session.Name)
+	fmt.Fprintf(log.DebugW, "🚀 Switching to session '%s'...\n", selected.Session.Name) //nolint:errcheck
 
 	// If session is not active, recreate it
 	if !selected.TmuxActive {
-		fmt.Println("⚠️  Session not active, recreating...")
+		fmt.Fprintln(log.WarnW, "⚠️  Session not active, recreating...") //nolint:errcheck
 
 		var claudeCmd string
 		if cfg.ClaudeBin != "" {
@@ -197,13 +194,13 @@ func handleSwitchAction(cfg *types.Config, tmuxMgr *tmux.Manager, selected *type
 	// Set title env var so the status bar picks it up
 	if selected.Session.Title != "" {
 		if err := tmuxMgr.SetSessionEnv(selected.Session.Name, "@claude-matrix-title", selected.Session.Title); err != nil {
-			fmt.Printf("⚠️  Failed to set session title: %v\n", err)
+			fmt.Fprintf(log.WarnW, "⚠️  Failed to set session title: %v\n", err) //nolint:errcheck
 		}
 	}
 
 	if err := tmuxMgr.SwitchToSession(selected.Session.Name); err != nil {
-		fmt.Printf("⚠️  Failed to switch to session: %v\n", err)
-		fmt.Printf("You can attach manually with: tmux attach -t %s\n", selected.Session.Name)
+		fmt.Fprintf(log.WarnW, "⚠️  Failed to switch to session: %v\n", err) //nolint:errcheck
+		fmt.Fprintf(log.WarnW, "You can attach manually with: tmux attach -t %s\n", selected.Session.Name) //nolint:errcheck
 	}
 
 	return nil
