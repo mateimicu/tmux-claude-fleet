@@ -470,8 +470,13 @@ func extractSessionName(line string) string {
 	return ""
 }
 
-// parseRepoURL extracts the source type (github/local) and org/repo from a repository URL
+// parseRepoURL extracts the source type (github/local/workspace) and org/repo from a repository URL
 func parseRepoURL(url string) (source, orgRepo string) {
+	// Check for workspace prefix
+	if name, ok := strings.CutPrefix(url, "workspace:"); ok {
+		return "workspace", name
+	}
+
 	// Check if it's a GitHub URL
 	if strings.Contains(url, "github.com") {
 		source = "github"
