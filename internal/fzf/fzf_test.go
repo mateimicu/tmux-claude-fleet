@@ -474,9 +474,23 @@ func TestSessionActions_NoDuplicateValues(t *testing.T) {
 		SessionActionDelete,
 		SessionActionCancel,
 		SessionActionToggleFilter,
+		SessionActionTools,
 	} {
 		if values[action] {
 			t.Errorf("duplicate SessionAction value: %q", action)
+		}
+		values[action] = true
+	}
+}
+
+func TestToolActions_NoDuplicateValues(t *testing.T) {
+	values := map[ToolAction]bool{}
+	for _, action := range []ToolAction{
+		ToolActionPrefillCache,
+		ToolActionCancel,
+	} {
+		if values[action] {
+			t.Errorf("duplicate ToolAction value: %q", action)
 		}
 		values[action] = true
 	}
@@ -566,13 +580,13 @@ func TestSessionLegend(t *testing.T) {
 		{
 			name:           "default view shows hide inactive hint",
 			showActiveOnly: false,
-			wantContains:   []string{"ctrl-t: hide inactive", "enter: switch", "ctrl-d: delete"},
+			wantContains:   []string{"ctrl-t: hide inactive", "enter: switch", "ctrl-d: delete", "ctrl-s: tools"},
 			wantNotContain: []string{"ctrl-t: show all"},
 		},
 		{
 			name:           "filtered view shows show all hint",
 			showActiveOnly: true,
-			wantContains:   []string{"ctrl-t: show all", "enter: switch", "ctrl-d: delete"},
+			wantContains:   []string{"ctrl-t: show all", "enter: switch", "ctrl-d: delete", "ctrl-s: tools"},
 			wantNotContain: []string{"ctrl-t: hide inactive"},
 		},
 	}
