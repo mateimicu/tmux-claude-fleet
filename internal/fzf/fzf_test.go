@@ -400,6 +400,124 @@ func TestRepoTypeLabel(t *testing.T) {
 	}
 }
 
+func TestFormatRepoTable(t *testing.T) {
+	repos := []*types.Repository{
+		{
+			Source:      "github",
+			Name:        "org/repo",
+			Description: "A cool repo",
+			URL:         "https://github.com/org/repo",
+		},
+		{
+			Source: "local",
+			Name:   "org/localrepo",
+			URL:    "/home/user/org/localrepo",
+		},
+		{
+			Source:         "workspace",
+			Name:           "my-project",
+			Description:    "3 repos",
+			IsWorkspace:    true,
+			WorkspaceRepos: []string{"a", "b", "c"},
+		},
+	}
+
+	header, lines := FormatRepoTable(repos)
+
+	// Header should contain column names
+	for _, col := range []string{"TYPE", "ORG/REPO", "DESCRIPTION"} {
+		if !strings.Contains(header, col) {
+			t.Errorf("header %q should contain column name %q", header, col)
+		}
+	}
+
+	if len(lines) != 3 {
+		t.Fatalf("expected 3 data lines, got %d", len(lines))
+	}
+
+	// Row 1: github repo with description
+	for _, want := range []string{"🐙 github", "org/repo", "A cool repo", "[https://github.com/org/repo]"} {
+		if !strings.Contains(lines[0], want) {
+			t.Errorf("row 1 %q should contain %q", lines[0], want)
+		}
+	}
+
+	// Row 2: local repo without description
+	for _, want := range []string{"💻 local", "org/localrepo", "[/home/user/org/localrepo]"} {
+		if !strings.Contains(lines[1], want) {
+			t.Errorf("row 2 %q should contain %q", lines[1], want)
+		}
+	}
+
+	// Row 3: workspace
+	for _, want := range []string{"📂 workspace", "my-project", "3 repos", "[workspace:my-project]"} {
+		if !strings.Contains(lines[2], want) {
+			t.Errorf("row 3 %q should contain %q", lines[2], want)
+		}
+	}
+}
+
+func TestFormatRepoTableAlignment(t *testing.T) {
+	repos := []*types.Repository{
+		{
+			Source:      "github",
+			Name:        "a/b",
+			Description: "short",
+			URL:         "https://github.com/a/b",
+		},
+		{
+			Source:      "github",
+			Name:        "organization/very-long-repository-name",
+			Description: "A much longer description for alignment testing",
+			URL:         "https://github.com/organization/very-long-repository-name",
+		},
+		{
+			Source:      "local",
+			Name:        "myorg/myrepo",
+			Description: "",
+			URL:         "/home/user/myorg/myrepo",
+		},
+	}
+
+	header, lines := FormatRepoTable(repos)
+
+	// All data lines should have the same display width up to the "[identifier]" bracket.
+	// The header has no bracket so measure its full width.
+	headerW := displayWidth(header)
+	for i, line := range lines {
+		bracketIdx := strings.LastIndex(line, "[")
+		if bracketIdx < 0 {
+			t.Fatalf("line %d missing identifier bracket: %q", i, line)
+		}
+		prefix := line[:bracketIdx]
+		prefixW := displayWidth(prefix)
+		if prefixW != headerW {
+			t.Errorf("line %d prefix display width = %d, want %d (header width)\nheader: %q\nline:   %q",
+				i, prefixW, headerW, header, line)
+		}
+	}
+}
+
+func TestFormatRepoTableEmojiIndicators(t *testing.T) {
+	repos := []*types.Repository{
+		{Source: "github", Name: "org/repo", URL: "https://github.com/org/repo"},
+		{Source: "local", Name: "org/local", URL: "/path/to/repo"},
+		{Source: "workspace", Name: "ws", IsWorkspace: true},
+	}
+
+	_, lines := FormatRepoTable(repos)
+
+	if !strings.Contains(lines[0], "🐙 github") {
+		t.Errorf("github repo should show 🐙 github indicator, got %q", lines[0])
+	}
+	if !strings.Contains(lines[1], "💻 local") {
+		t.Errorf("local repo should show 💻 local indicator, got %q", lines[1])
+	}
+	if !strings.Contains(lines[2], "📂 workspace") {
+		t.Errorf("workspace repo should show 📂 workspace indicator, got %q", lines[2])
+	}
+}
+
 func TestFormatRepoLine(t *testing.T) {
 	tests := []struct {
 		name         string
