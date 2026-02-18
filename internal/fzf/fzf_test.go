@@ -134,8 +134,8 @@ func TestFormatSessionTable(t *testing.T) {
 
 	header, lines := formatSessionTable(sessions)
 
-	// Header should contain column names
-	for _, col := range []string{"#", "TMUX", "SOURCE", "REPOSITORY", "CLAUDE", "SESSION"} {
+	// Header should contain column names including TITLE
+	for _, col := range []string{"#", "TMUX", "SOURCE", "REPOSITORY", "TITLE", "CLAUDE", "SESSION"} {
 		if !strings.Contains(header, col) {
 			t.Errorf("header %q should contain column name %q", header, col)
 		}
@@ -145,9 +145,9 @@ func TestFormatSessionTable(t *testing.T) {
 		t.Fatalf("expected 2 data lines, got %d", len(lines))
 	}
 
-	// First row: active GitHub session
+	// First row: active GitHub session - REPOSITORY shows orgRepo, TITLE shows session name (no Title set)
 	row1 := lines[0]
-	for _, want := range []string{"1", "🟢", "github", "mateimicu/tmux-claude-fleet", "Active", "[test-session-1]"} {
+	for _, want := range []string{"1", "🟢", "github", "mateimicu/tmux-claude-fleet", "test-session-1", "Active", "[test-session-1]"} {
 		if !strings.Contains(row1, want) {
 			t.Errorf("row 1 %q should contain %q", row1, want)
 		}
@@ -155,7 +155,7 @@ func TestFormatSessionTable(t *testing.T) {
 
 	// Second row: inactive local session
 	row2 := lines[1]
-	for _, want := range []string{"2", "⚫", "local", "myorg/myrepo", "Stopped", "[local-project]"} {
+	for _, want := range []string{"2", "⚫", "local", "myorg/myrepo", "local-project", "Stopped", "[local-project]"} {
 		if !strings.Contains(row2, want) {
 			t.Errorf("row 2 %q should contain %q", row2, want)
 		}
@@ -167,7 +167,7 @@ func TestFormatSessionTableWithTitle(t *testing.T) {
 		{
 			Session: &types.Session{
 				Name:      "test-session-1",
-				Title:     "mateimicu/tmux-claude-fleet #1",
+				Title:     "my custom title",
 				RepoURL:   "https://github.com/mateimicu/tmux-claude-fleet",
 				CreatedAt: time.Now(),
 			},
@@ -187,14 +187,74 @@ func TestFormatSessionTableWithTitle(t *testing.T) {
 
 	_, lines := formatSessionTable(sessions)
 
-	// First row should show title instead of orgRepo
-	if !strings.Contains(lines[0], "mateimicu/tmux-claude-fleet #1") {
-		t.Errorf("row with title should display title, got %q", lines[0])
+	// First row: REPOSITORY shows orgRepo (not title), TITLE shows the custom title
+	if !strings.Contains(lines[0], "mateimicu/tmux-claude-fleet") {
+		t.Errorf("REPOSITORY column should show orgRepo, got %q", lines[0])
+	}
+	if !strings.Contains(lines[0], "my custom title") {
+		t.Errorf("TITLE column should show custom title, got %q", lines[0])
 	}
 
-	// Second row has no title, should fall back to orgRepo
+	// Second row: REPOSITORY shows orgRepo, TITLE falls back to session name
 	if !strings.Contains(lines[1], "myorg/myrepo") {
-		t.Errorf("row without title should fall back to orgRepo, got %q", lines[1])
+		t.Errorf("REPOSITORY column should show orgRepo, got %q", lines[1])
+	}
+	if !strings.Contains(lines[1], "local-project") {
+		t.Errorf("TITLE column should fall back to session name, got %q", lines[1])
+	}
+}
+
+func TestFormatSessionTableTitleColumn(t *testing.T) {
+	tests := []struct {
+		name      string
+		title     string
+		sessName  string
+		wantTitle string
+	}{
+		{
+			name:      "title set shows title in TITLE column",
+			title:     "my-feature-work",
+			sessName:  "mateimicu-repo-1",
+			wantTitle: "my-feature-work",
+		},
+		{
+			name:      "empty title falls back to session name",
+			title:     "",
+			sessName:  "mateimicu-repo-1",
+			wantTitle: "mateimicu-repo-1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sessions := []*types.SessionStatus{
+				{
+					Session: &types.Session{
+						Name:      tt.sessName,
+						Title:     tt.title,
+						RepoURL:   "https://github.com/org/repo",
+						CreatedAt: time.Now(),
+					},
+					TmuxActive:  true,
+					ClaudeState: types.ClaudeStateRunning,
+				},
+			}
+
+			_, lines := formatSessionTable(sessions)
+			if len(lines) != 1 {
+				t.Fatalf("expected 1 line, got %d", len(lines))
+			}
+
+			// REPOSITORY should always show orgRepo
+			if !strings.Contains(lines[0], "org/repo") {
+				t.Errorf("REPOSITORY column should show orgRepo, got %q", lines[0])
+			}
+
+			// TITLE should show expected value
+			if !strings.Contains(lines[0], tt.wantTitle) {
+				t.Errorf("TITLE column should contain %q, got %q", tt.wantTitle, lines[0])
+			}
+		})
 	}
 }
 
@@ -692,17 +752,17 @@ func TestExtractSessionName(t *testing.T) {
 	}{
 		{
 			name:     "Extract from table row with active session",
-			line:     " 01  🟢  github  mateimicu/tmux-claude-fleet  🟢 Active       [test-session-1]",
+			line:     " 01  🟢  github  mateimicu/tmux-claude-fleet  test-session-1  🟢 Active       [test-session-1]",
 			expected: "test-session-1",
 		},
 		{
 			name:     "Extract from table row with inactive session",
-			line:     " 05  ⚫  local   myorg/myrepo                 ⚫ Stopped       [local-project]",
+			line:     " 05  ⚫  local   myorg/myrepo                 local-project  ⚫ Stopped       [local-project]",
 			expected: "local-project",
 		},
 		{
 			name:     "Extract from table row with waiting state",
-			line:     " 001  🟢  github  user/repo                   ❓ Waiting  [my-session]",
+			line:     " 001  🟢  github  user/repo                   my-session  ❓ Waiting  [my-session]",
 			expected: "my-session",
 		},
 	}
