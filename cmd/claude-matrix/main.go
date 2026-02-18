@@ -23,19 +23,21 @@ const (
 )
 
 // configFromContext retrieves the Config from the command context.
+// Panics if PersistentPreRunE has not run (programming error).
 func configFromContext(ctx context.Context) *types.Config {
 	cfg, ok := ctx.Value(configKey).(*types.Config)
 	if !ok {
-		return nil
+		panic("configFromContext: missing config in context — PersistentPreRunE did not run")
 	}
 	return cfg
 }
 
 // loggerFromContext retrieves the Logger from the command context.
+// Panics if PersistentPreRunE has not run (programming error).
 func loggerFromContext(ctx context.Context) *logging.Logger {
 	log, ok := ctx.Value(loggerKey).(*logging.Logger)
 	if !ok {
-		return nil
+		panic("loggerFromContext: missing logger in context — PersistentPreRunE did not run")
 	}
 	return log
 }
