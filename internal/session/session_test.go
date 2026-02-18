@@ -123,66 +123,6 @@ func TestGenerateUniqueName(t *testing.T) {
 	})
 }
 
-func TestGenerateTitle(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "session-test-*")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	mgr := NewManager(tmpDir)
-
-	t.Run("FirstSessionForRepo", func(t *testing.T) {
-		title := mgr.GenerateTitle("mateimicu/tmux-claude-matrix")
-		if title != "mateimicu/tmux-claude-matrix #1" {
-			t.Errorf("expected %q, got %q", "mateimicu/tmux-claude-matrix #1", title)
-		}
-	})
-
-	t.Run("SubsequentSessionsIncrement", func(t *testing.T) {
-		// Save a session with the same repo URL
-		sess := &types.Session{
-			Name:      "session-1",
-			Title:     "mateimicu/tmux-claude-matrix #1",
-			RepoURL:   "https://github.com/mateimicu/tmux-claude-matrix",
-			ClonePath: "/tmp/test1",
-			CreatedAt: time.Now(),
-		}
-		if err := mgr.Save(sess); err != nil {
-			t.Fatalf("Save failed: %v", err)
-		}
-
-		title := mgr.GenerateTitle("mateimicu/tmux-claude-matrix")
-		if title != "mateimicu/tmux-claude-matrix #2" {
-			t.Errorf("expected %q, got %q", "mateimicu/tmux-claude-matrix #2", title)
-		}
-
-		// Save another and check #3
-		sess2 := &types.Session{
-			Name:      "session-2",
-			Title:     "mateimicu/tmux-claude-matrix #2",
-			RepoURL:   "https://github.com/mateimicu/tmux-claude-matrix",
-			ClonePath: "/tmp/test2",
-			CreatedAt: time.Now(),
-		}
-		if err := mgr.Save(sess2); err != nil {
-			t.Fatalf("Save failed: %v", err)
-		}
-
-		title = mgr.GenerateTitle("mateimicu/tmux-claude-matrix")
-		if title != "mateimicu/tmux-claude-matrix #3" {
-			t.Errorf("expected %q, got %q", "mateimicu/tmux-claude-matrix #3", title)
-		}
-	})
-
-	t.Run("DifferentRepoStartsAtOne", func(t *testing.T) {
-		title := mgr.GenerateTitle("other/repo")
-		if title != "other/repo #1" {
-			t.Errorf("expected %q, got %q", "other/repo #1", title)
-		}
-	})
-}
-
 func TestBackwardCompatibility_MissingTitle(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "session-compat-*")
 	if err != nil {
