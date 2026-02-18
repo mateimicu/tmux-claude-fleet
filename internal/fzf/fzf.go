@@ -81,6 +81,8 @@ const (
 	SessionActionCancel SessionAction = "cancel"
 	// SessionActionToggleFilter indicates toggling the active-only filter
 	SessionActionToggleFilter SessionAction = "toggle_filter"
+	// SessionActionTools indicates opening the tools sub-menu
+	SessionActionTools SessionAction = "tools"
 )
 
 // SessionSelection represents the result of session selection
@@ -107,7 +109,7 @@ func sessionLegend(showActiveOnly bool) string {
 	if showActiveOnly {
 		toggleHint = "ctrl-t: show all"
 	}
-	return "↑↓ navigate | enter: switch | ctrl-d: delete | " + toggleHint + " | ctrl-c: cancel\n" +
+	return "↑↓ navigate | enter: switch | ctrl-d: delete | " + toggleHint + " | ctrl-s: tools | ctrl-c: cancel\n" +
 		"Session: 🟢 active  ⚫ inactive | Claude: 🟢 Active  ❓ Waiting  💬 Ready  ⚠️ Error  ⚫ Stopped  ❔ Unknown"
 }
 
@@ -155,7 +157,7 @@ func SelectSessionWithAction(sessions []*types.SessionStatus, showActiveOnly boo
 	legend := sessionLegend(showActiveOnly)
 	key, selected, err := runFZFWithExpect(
 		strings.Join(allLines, "\n"),
-		[]string{"ctrl-d", "ctrl-t"},
+		[]string{"ctrl-d", "ctrl-t", "ctrl-s"},
 		"--prompt=🚀 Select session > ",
 		"--reverse",
 		"--border=rounded",
@@ -170,6 +172,11 @@ func SelectSessionWithAction(sessions []*types.SessionStatus, showActiveOnly boo
 	// ctrl-t toggles the active-only filter; no session needed
 	if key == "ctrl-t" {
 		return &SessionSelection{Action: SessionActionToggleFilter}, nil
+	}
+
+	// ctrl-s opens the tools sub-menu; no session needed
+	if key == "ctrl-s" {
+		return &SessionSelection{Action: SessionActionTools}, nil
 	}
 
 	// Extract session name from selected line
@@ -190,6 +197,52 @@ func SelectSessionWithAction(sessions []*types.SessionStatus, showActiveOnly boo
 	}
 
 	return nil, fmt.Errorf("selected session not found")
+}
+
+// ToolAction represents an action in the tools sub-menu
+type ToolAction string
+
+const (
+	// ToolActionPrefillCache indicates the pre-fill mirror cache action
+	ToolActionPrefillCache ToolAction = "prefill_cache"
+	// ToolActionCancel indicates the user cancelled the tools menu
+	ToolActionCancel ToolAction = "cancel"
+)
+
+// SelectToolAction shows FZF menu for tool action selection.
+// Returns ToolActionCancel if the user exits FZF without selecting.
+func SelectToolAction() (ToolAction, error) {
+	items := []struct {
+		label  string
+		action ToolAction
+	}{
+		{"Pre-fill mirror cache", ToolActionPrefillCache},
+	}
+
+	var lines []string
+	for _, item := range items {
+		lines = append(lines, item.label)
+	}
+
+	selected, err := runFZF(
+		strings.Join(lines, "\n"),
+		"--prompt=🔧 Select tool > ",
+		"--reverse",
+		"--border=rounded",
+		"--height=80%",
+		"--header=enter: select | ctrl-c: back",
+	)
+	if err != nil {
+		return ToolActionCancel, nil
+	}
+
+	for _, item := range items {
+		if item.label == selected {
+			return item.action, nil
+		}
+	}
+
+	return ToolActionCancel, nil
 }
 
 // FormatRepoLine formats a repository as a single line for FZF display.
