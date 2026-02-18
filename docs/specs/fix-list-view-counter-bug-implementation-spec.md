@@ -54,11 +54,11 @@ The FZF list view conflates two concerns into the REPOSITORY column: it shows `S
 
 ### AD-1: REPOSITORY column always shows `orgRepo` from `parseRepoURL()`
 
-**Approach:** Remove the Title-to-REPOSITORY fallback in `formatSessionTable()`. The REPOSITORY column always displays the `orgRepo` value derived from `Session.RepoURL`.
+**Approach:** Remove the Title-to-REPOSITORY fallback in `formatSessionTable()`. The REPOSITORY column always displays the `orgRepo` value derived from `Session.RepoURL`. For workspace sessions (where `RepoURL` is `"workspace:name"`), `parseRepoURL()` must detect the `workspace:` prefix and return the workspace name (e.g., `my-project`) as `orgRepo` with `source = "workspace"`.
 
-**Rationale:** The REPOSITORY column should reflect the actual repository, not a user-customizable title. Conflating the two causes the `#N` counter to appear in a column labeled "REPOSITORY."
+**Rationale:** The REPOSITORY column should reflect the actual repository (or workspace), not a user-customizable title. Conflating the two causes the `#N` counter to appear in a column labeled "REPOSITORY."
 
-**Impact:** `internal/fzf/fzf.go` -- `formatSessionTable()` only. The `displayName` variable is replaced with `orgRepo` directly.
+**Impact:** `internal/fzf/fzf.go` -- `formatSessionTable()` (remove Title fallback) and `parseRepoURL()` (add `workspace:` prefix handling). The `displayName` variable is replaced with `orgRepo` directly.
 
 ### AD-2: Add a TITLE column between REPOSITORY and CLAUDE
 
@@ -120,6 +120,9 @@ SessionActionRename SessionAction = "rename"
 **`SelectSessionWithAction(sessions, showActiveOnly) (*SessionSelection, error)`:**
 - Add `"ctrl-r"` to the `expectedKeys` slice passed to `runFZFWithExpect()`.
 - Add a key-to-action mapping: `"ctrl-r"` returns `SessionActionRename`.
+
+**`parseRepoURL(url string) (source, orgRepo string)`:**
+- Add handling for `workspace:` prefix URLs: detect `strings.HasPrefix(url, "workspace:")`, set `source = "workspace"`, and return the workspace name (after the prefix) as `orgRepo`.
 
 **`formatSessionTable(sessions) (string, []string)`:**
 - Remove the Title-fallback logic (lines 239-243). Always use `orgRepo` for the repo column.
