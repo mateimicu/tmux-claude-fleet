@@ -154,6 +154,8 @@ func applyConfigValue(cfg *types.Config, key, value string) {
 		cfg.WorkspacesEnabled = value == "1" || value == "true"
 	case "WORKSPACES_FILE":
 		cfg.WorkspacesFile = value
+	case "DEBUG":
+		cfg.Debug = value == "1" || value == "true"
 	}
 }
 
@@ -204,6 +206,9 @@ func applyEnvOverrides(cfg *types.Config) {
 	}
 	if val := os.Getenv("TMUX_CLAUDE_MATRIX_WORKSPACES_FILE"); val != "" {
 		cfg.WorkspacesFile = val
+	}
+	if val := os.Getenv("TMUX_CLAUDE_MATRIX_DEBUG"); val != "" {
+		cfg.Debug = val == "1" || val == "true"
 	}
 }
 
