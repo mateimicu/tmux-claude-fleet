@@ -5,6 +5,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/mateimicu/tmux-claude-matrix/internal/logging"
 	"github.com/mateimicu/tmux-claude-matrix/pkg/types"
 )
 
@@ -16,7 +17,8 @@ func TestBuildSources_LocalOnly(t *testing.T) {
 		WorkspacesEnabled:  false,
 	}
 
-	sources, err := buildSources(context.Background(), cfg, io.Discard)
+	log := &logging.Logger{DebugW: io.Discard, WarnW: io.Discard}
+	sources, err := buildSources(context.Background(), cfg, log)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -37,7 +39,8 @@ func TestBuildSources_NoSourcesConfigured(t *testing.T) {
 		WorkspacesEnabled:  false,
 	}
 
-	_, err := buildSources(context.Background(), cfg, io.Discard)
+	log := &logging.Logger{DebugW: io.Discard, WarnW: io.Discard}
+	_, err := buildSources(context.Background(), cfg, log)
 	if err == nil {
 		t.Fatal("expected error when no sources configured")
 	}
@@ -51,7 +54,8 @@ func TestBuildSources_WorkspacesEnabled(t *testing.T) {
 		GitHubEnabled:      false,
 	}
 
-	sources, err := buildSources(context.Background(), cfg, io.Discard)
+	log := &logging.Logger{DebugW: io.Discard, WarnW: io.Discard}
+	sources, err := buildSources(context.Background(), cfg, log)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

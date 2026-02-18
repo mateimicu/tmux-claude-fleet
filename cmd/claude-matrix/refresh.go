@@ -9,7 +9,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mateimicu/tmux-claude-matrix/internal/config"
 	"github.com/mateimicu/tmux-claude-matrix/internal/repos"
 )
 
@@ -25,22 +24,19 @@ func refreshCmd() *cobra.Command {
 }
 
 func runRefresh(ctx context.Context) error {
-	// Load config
-	cfg, err := config.Load()
-	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
+	cfg := configFromContext(ctx)
+	log := loggerFromContext(ctx)
 
-	fmt.Println("🔄 Refreshing repository cache...")
+	fmt.Fprintln(log.DebugW, "🔄 Refreshing repository cache...") //nolint:errcheck
 
 	// Clear existing cache
 	cachePath := filepath.Join(cfg.CacheDir, "github-repos.json")
 	if err := os.Remove(cachePath); err != nil && !os.IsNotExist(err) {
-		fmt.Printf("⚠️  Failed to clear cache: %v\n", err)
+		fmt.Fprintf(log.WarnW, "⚠️  Failed to clear cache: %v\n", err) //nolint:errcheck
 	}
 
 	// Build sources list
-	sources, err := buildSources(ctx, cfg, os.Stdout)
+	sources, err := buildSources(ctx, cfg, log)
 	if err != nil {
 		return err
 	}
@@ -56,9 +52,9 @@ func runRefresh(ctx context.Context) error {
 		return fmt.Errorf("failed to fetch repositories: %w", err)
 	}
 
-	fmt.Printf("✓ Cache refreshed with %d repositories\n", len(repoList))
-	fmt.Printf("📁 Cache location: %s\n", cachePath)
-	fmt.Printf("⏰ Cache TTL: %s\n", cfg.CacheTTL)
+	fmt.Fprintf(log.DebugW, "✓ Cache refreshed with %d repositories\n", len(repoList)) //nolint:errcheck
+	fmt.Fprintf(log.DebugW, "📁 Cache location: %s\n", cachePath)                       //nolint:errcheck
+	fmt.Fprintf(log.DebugW, "⏰ Cache TTL: %s\n", cfg.CacheTTL)                         //nolint:errcheck
 
 	return nil
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mateimicu/tmux-claude-matrix/internal/config"
 	"github.com/mateimicu/tmux-claude-matrix/internal/session"
 	"github.com/mateimicu/tmux-claude-matrix/internal/tmux"
 )
@@ -33,23 +33,20 @@ func renameCmd() *cobra.Command {
 					return fmt.Errorf("no title provided")
 				}
 			}
-			return runRename(title)
+			return runRename(cmd.Context(), title)
 		},
 	}
 }
 
-func runRename(title string) error {
+func runRename(ctx context.Context, title string) error {
 	// Detect current tmux session
 	sessionName, err := getCurrentTmuxSession()
 	if err != nil {
 		return fmt.Errorf("failed to detect current tmux session: %w", err)
 	}
 
-	// Load config
-	cfg, err := config.Load()
-	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
+	cfg := configFromContext(ctx)
+	log := loggerFromContext(ctx)
 
 	// Load session metadata
 	sessionMgr := session.NewManager(cfg.SessionsDir)
@@ -67,10 +64,10 @@ func runRename(title string) error {
 	// Update tmux env var
 	tmuxMgr := tmux.New()
 	if err := tmuxMgr.SetSessionEnv(sessionName, "@claude-matrix-title", title); err != nil {
-		fmt.Printf("Warning: failed to update tmux env var: %v\n", err)
+		fmt.Fprintf(log.WarnW, "Warning: failed to update tmux env var: %v\n", err) //nolint:errcheck
 	}
 
-	fmt.Printf("Session '%s' renamed to '%s'\n", sessionName, title)
+	fmt.Fprintf(log.DebugW, "Session '%s' renamed to '%s'\n", sessionName, title) //nolint:errcheck
 	return nil
 }
 
