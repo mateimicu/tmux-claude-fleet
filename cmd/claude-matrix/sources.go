@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/mateimicu/tmux-claude-matrix/internal/logging"
@@ -29,11 +28,11 @@ func buildSources(ctx context.Context, cfg *types.Config, log *logging.Logger) (
 	if cfg.GitHubEnabled {
 		token, source := repos.GetGitHubToken(ctx)
 		if token == "" {
-			fmt.Fprintln(log.WarnW, "⚠️  GitHub authentication not found, skipping GitHub repositories") //nolint:errcheck // Logging output is non-critical
+			log.Warnf("⚠️  GitHub authentication not found, skipping GitHub repositories\n")
 		} else {
-			fmt.Fprintf(log.DebugW, "✓ GitHub integration enabled (using %s)\n", source) //nolint:errcheck // Logging output is non-critical
+			log.Debugf("✓ GitHub integration enabled (using %s)\n", source)
 			if len(cfg.GitHubOrgs) > 0 {
-				fmt.Fprintf(log.DebugW, "  Filtering by organizations: %s\n", strings.Join(cfg.GitHubOrgs, ", ")) //nolint:errcheck // Logging output is non-critical
+				log.Debugf("  Filtering by organizations: %s\n", strings.Join(cfg.GitHubOrgs, ", "))
 			}
 			ghSource := repos.NewGitHubSource(token, cfg.CacheDir, cfg.CacheTTL, cfg.GitHubOrgs)
 			ghSource.SetLogger(log.DebugW)
@@ -46,11 +45,4 @@ func buildSources(ctx context.Context, cfg *types.Config, log *logging.Logger) (
 	}
 
 	return sources, nil
-}
-
-// buildSourcesWithWriter creates the list of repository sources for callers
-// that need an io.Writer interface (e.g., list-repos which always discards).
-func buildSourcesWithWriter(ctx context.Context, cfg *types.Config, w io.Writer) ([]repos.Source, error) {
-	log := &logging.Logger{DebugW: w, WarnW: w}
-	return buildSources(ctx, cfg, log)
 }

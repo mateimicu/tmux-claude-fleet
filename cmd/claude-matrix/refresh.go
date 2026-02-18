@@ -27,12 +27,12 @@ func runRefresh(ctx context.Context) error {
 	cfg := configFromContext(ctx)
 	log := loggerFromContext(ctx)
 
-	fmt.Fprintln(log.DebugW, "🔄 Refreshing repository cache...") //nolint:errcheck
+	log.Debugf("🔄 Refreshing repository cache...\n")
 
 	// Clear existing cache
 	cachePath := filepath.Join(cfg.CacheDir, "github-repos.json")
 	if err := os.Remove(cachePath); err != nil && !os.IsNotExist(err) {
-		fmt.Fprintf(log.WarnW, "⚠️  Failed to clear cache: %v\n", err) //nolint:errcheck
+		log.Warnf("⚠️  Failed to clear cache: %v\n", err)
 	}
 
 	// Build sources list
@@ -52,9 +52,10 @@ func runRefresh(ctx context.Context) error {
 		return fmt.Errorf("failed to fetch repositories: %w", err)
 	}
 
-	fmt.Fprintf(log.DebugW, "✓ Cache refreshed with %d repositories\n", len(repoList)) //nolint:errcheck
-	fmt.Fprintf(log.DebugW, "📁 Cache location: %s\n", cachePath)                       //nolint:errcheck
-	fmt.Fprintf(log.DebugW, "⏰ Cache TTL: %s\n", cfg.CacheTTL)                         //nolint:errcheck
+	// User-facing success confirmation — always visible
+	fmt.Printf("✓ Cache refreshed with %d repositories\n", len(repoList))
+	log.Debugf("📁 Cache location: %s\n", cachePath)
+	log.Debugf("⏰ Cache TTL: %s\n", cfg.CacheTTL)
 
 	return nil
 }

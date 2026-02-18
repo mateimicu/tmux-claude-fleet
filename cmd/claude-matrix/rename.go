@@ -64,10 +64,11 @@ func runRename(ctx context.Context, title string) error {
 	// Update tmux env var
 	tmuxMgr := tmux.New()
 	if err := tmuxMgr.SetSessionEnv(sessionName, "@claude-matrix-title", title); err != nil {
-		fmt.Fprintf(log.WarnW, "Warning: failed to update tmux env var: %v\n", err) //nolint:errcheck
+		log.Warnf("Warning: failed to update tmux env var: %v\n", err)
 	}
 
-	fmt.Fprintf(log.DebugW, "Session '%s' renamed to '%s'\n", sessionName, title) //nolint:errcheck
+	// User-facing success confirmation — always visible
+	fmt.Printf("Session '%s' renamed to '%s'\n", sessionName, title)
 	return nil
 }
 
