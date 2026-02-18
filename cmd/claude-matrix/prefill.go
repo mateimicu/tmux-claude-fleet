@@ -76,14 +76,7 @@ func runPrefillCache(ctx context.Context, cfg *types.Config) error {
 		}
 
 		repoName := git.ExtractRepoName(url)
-		mirrorPath := gitMgr.GetMirrorPath(url, cfg.CacheDir)
-		exists := gitMgr.MirrorExists(mirrorPath)
-
-		if exists {
-			fmt.Printf("[%d/%d] Updating mirror: %s...\n", i+1, total, repoName)
-		} else {
-			fmt.Printf("[%d/%d] Cloning mirror: %s...\n", i+1, total, repoName)
-		}
+		fmt.Printf("[%d/%d] Caching mirror: %s...\n", i+1, total, repoName)
 
 		created, err := gitMgr.EnsureMirror(url, cfg.CacheDir)
 		if err != nil {
@@ -92,10 +85,11 @@ func runPrefillCache(ctx context.Context, cfg *types.Config) error {
 			continue
 		}
 
-		fmt.Printf("[%d/%d] ✓ %s\n", i+1, total, repoName)
 		if created {
+			fmt.Printf("[%d/%d] ✓ %s (new)\n", i+1, total, repoName)
 			newCount++
 		} else {
+			fmt.Printf("[%d/%d] ✓ %s (updated)\n", i+1, total, repoName)
 			updatedCount++
 		}
 	}

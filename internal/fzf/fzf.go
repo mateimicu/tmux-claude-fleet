@@ -128,7 +128,7 @@ func SelectSession(sessions []*types.SessionStatus) (*types.SessionStatus, error
 		switch selection.Action {
 		case SessionActionCancel:
 			return nil, fmt.Errorf("selection cancelled")
-		case SessionActionToggleFilter:
+		case SessionActionToggleFilter, SessionActionTools:
 			continue
 		default:
 			return selection.Session, nil
@@ -220,20 +220,10 @@ const (
 // SelectToolAction shows FZF menu for tool action selection.
 // Returns ToolActionCancel if the user exits FZF without selecting.
 func SelectToolAction() (ToolAction, error) {
-	items := []struct {
-		label  string
-		action ToolAction
-	}{
-		{"Pre-fill mirror cache", ToolActionPrefillCache},
-	}
-
-	var lines []string
-	for _, item := range items {
-		lines = append(lines, item.label)
-	}
+	const prefillLabel = "Pre-fill mirror cache"
 
 	selected, err := runFZF(
-		strings.Join(lines, "\n"),
+		prefillLabel,
 		"--prompt=🔧 Select tool > ",
 		"--reverse",
 		"--border=rounded",
@@ -244,10 +234,8 @@ func SelectToolAction() (ToolAction, error) {
 		return ToolActionCancel, nil
 	}
 
-	for _, item := range items {
-		if item.label == selected {
-			return item.action, nil
-		}
+	if selected == prefillLabel {
+		return ToolActionPrefillCache, nil
 	}
 
 	return ToolActionCancel, nil
