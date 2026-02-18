@@ -63,4 +63,5 @@ type Config struct {
 	GitHubEnabled      bool
 	LocalConfigEnabled bool
 	WorkspacesEnabled  bool
+	Debug              bool
 }
