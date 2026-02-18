@@ -518,56 +518,6 @@ func TestFormatRepoTableEmojiIndicators(t *testing.T) {
 	}
 }
 
-func TestFormatRepoLine(t *testing.T) {
-	tests := []struct {
-		name         string
-		repo         *types.Repository
-		wantContains []string
-	}{
-		{
-			name: "Regular repo with description",
-			repo: &types.Repository{
-				Source:      "github",
-				Name:        "org/repo",
-				Description: "A cool repo",
-				URL:         "https://github.com/org/repo",
-			},
-			wantContains: []string{"github:", "org/repo", "A cool repo", "[https://github.com/org/repo]"},
-		},
-		{
-			name: "Regular repo without description",
-			repo: &types.Repository{
-				Source: "local",
-				Name:   "org/repo",
-				URL:    "https://github.com/org/repo",
-			},
-			wantContains: []string{"local:", "org/repo", "[https://github.com/org/repo]"},
-		},
-		{
-			name: "Workspace",
-			repo: &types.Repository{
-				Source:         "workspace",
-				Name:           "my-project",
-				Description:    "3 repos",
-				IsWorkspace:    true,
-				WorkspaceRepos: []string{"a", "b", "c"},
-			},
-			wantContains: []string{"workspace:", "my-project", "3 repos", "[workspace:my-project]"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := FormatRepoLine(tt.repo)
-			for _, want := range tt.wantContains {
-				if !strings.Contains(result, want) {
-					t.Errorf("formatRepoLine() = %q, should contain %q", result, want)
-				}
-			}
-		})
-	}
-}
-
 func TestExtractURLWorkspace(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -575,13 +525,13 @@ func TestExtractURLWorkspace(t *testing.T) {
 		expected string
 	}{
 		{
-			name:     "Workspace identifier",
-			line:     "workspace: my-project - 3 repos [workspace:my-project]",
+			name:     "Workspace identifier from table row",
+			line:     " 📂 workspace  my-project  3 repos [workspace:my-project]",
 			expected: "workspace:my-project",
 		},
 		{
-			name:     "Regular repo URL",
-			line:     "github: org/repo - desc [https://github.com/org/repo]",
+			name:     "Regular repo URL from table row",
+			line:     " 🐙 github  org/repo  A cool repo [https://github.com/org/repo]",
 			expected: "https://github.com/org/repo",
 		},
 	}
@@ -869,6 +819,7 @@ func TestBuildRepoFZFArgs(t *testing.T) {
 
 		hasReload := false
 		hasHeader := false
+		hasHeaderLines := false
 		for _, arg := range args {
 			if strings.Contains(arg, "ctrl-r:reload") {
 				hasReload = true
@@ -885,12 +836,18 @@ func TestBuildRepoFZFArgs(t *testing.T) {
 			if strings.Contains(arg, "ctrl-r") && strings.Contains(arg, "refresh") && strings.HasPrefix(arg, "--header=") {
 				hasHeader = true
 			}
+			if arg == "--header-lines=1" {
+				hasHeaderLines = true
+			}
 		}
 		if !hasReload {
 			t.Error("FZF args should contain ctrl-r reload binding")
 		}
 		if !hasHeader {
 			t.Error("FZF header should mention ctrl-r refresh")
+		}
+		if !hasHeaderLines {
+			t.Error("FZF args should contain --header-lines=1 for frozen column header")
 		}
 	})
 
