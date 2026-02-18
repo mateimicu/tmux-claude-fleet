@@ -405,7 +405,7 @@ func TestFormatRepoLine(t *testing.T) {
 			result := FormatRepoLine(tt.repo)
 			for _, want := range tt.wantContains {
 				if !strings.Contains(result, want) {
-					t.Errorf("formatRepoLine() = %q, should contain %q", result, want)
+					t.Errorf("FormatRepoLine() = %q, should contain %q", result, want)
 				}
 			}
 		})
@@ -544,9 +544,9 @@ func TestParseFZFOutput(t *testing.T) {
 func TestSessionActions_NoDuplicateValues(t *testing.T) {
 	// Guard against duplicate action values that could cause switch
 	// cases to silently fall through to the wrong handler.
-	// SelectSession uses a switch on SessionAction; every value must
-	// be distinct so that toggle, cancel, delete, and switch are
-	// each routed correctly.
+	// SelectSessionWithAction uses a switch on SessionAction; every
+	// value must be distinct so that toggle, cancel, delete, and
+	// switch are each routed correctly.
 	values := map[SessionAction]bool{}
 	for _, action := range []SessionAction{
 		SessionActionSwitch,
@@ -714,7 +714,7 @@ func TestBuildRepoFZFArgs(t *testing.T) {
 		hasReload := false
 		hasHeader := false
 		for _, arg := range args {
-			if strings.Contains(arg, "ctrl-r:reload") {
+			if strings.Contains(arg, "reload(") && strings.Contains(arg, "ctrl-r:") {
 				hasReload = true
 				if !strings.Contains(arg, "/usr/local/bin/claude-matrix") {
 					t.Errorf("reload binding should contain binary path, got %q", arg)
@@ -724,6 +724,11 @@ func TestBuildRepoFZFArgs(t *testing.T) {
 				}
 				if !strings.Contains(arg, "'/usr/local/bin/claude-matrix'") {
 					t.Errorf("binary path should be single-quoted, got %q", arg)
+				}
+				// Header should be restored after reload
+				headerRestored := strings.Count(arg, "change-header(") >= 2
+				if !headerRestored {
+					t.Errorf("header should be restored after reload, got %q", arg)
 				}
 			}
 			if strings.Contains(arg, "ctrl-r") && strings.Contains(arg, "refresh") && strings.HasPrefix(arg, "--header=") {
@@ -742,7 +747,7 @@ func TestBuildRepoFZFArgs(t *testing.T) {
 		args := buildRepoFZFArgs("/Users/First Last/bin/claude-matrix")
 
 		for _, arg := range args {
-			if strings.Contains(arg, "ctrl-r:reload") {
+			if strings.Contains(arg, "reload(") && strings.Contains(arg, "ctrl-r:") {
 				if !strings.Contains(arg, "'/Users/First Last/bin/claude-matrix'") {
 					t.Errorf("path with spaces should be single-quoted, got %q", arg)
 				}
@@ -754,10 +759,23 @@ func TestBuildRepoFZFArgs(t *testing.T) {
 		args := buildRepoFZFArgs("/Users/O'Brien/bin/claude-matrix")
 
 		for _, arg := range args {
-			if strings.Contains(arg, "ctrl-r:reload") {
+			if strings.Contains(arg, "reload(") && strings.Contains(arg, "ctrl-r:") {
 				// The quote should be escaped as '\''
 				if !strings.Contains(arg, "'/Users/O'\\''Brien/bin/claude-matrix'") {
 					t.Errorf("single quote in path should be escaped, got %q", arg)
+				}
+			}
+		}
+	})
+
+	t.Run("PathWithParentheses", func(t *testing.T) {
+		args := buildRepoFZFArgs("/Users/test(1)/bin/claude-matrix")
+
+		for _, arg := range args {
+			if strings.Contains(arg, "reload(") && strings.Contains(arg, "ctrl-r:") {
+				// Parentheses in the path should be escaped for FZF
+				if !strings.Contains(arg, "\\(") || !strings.Contains(arg, "\\)") {
+					t.Errorf("parentheses in path should be escaped for FZF, got %q", arg)
 				}
 			}
 		}

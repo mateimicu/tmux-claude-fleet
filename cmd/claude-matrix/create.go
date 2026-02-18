@@ -61,10 +61,14 @@ func runCreate(ctx context.Context) error {
 
 	fmt.Printf("✓ Found %d repositories\n", len(repoList))
 
-	// Get binary path for FZF reload
+	// Get binary path for FZF reload (resolve symlinks for consistency)
 	binaryPath, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("failed to get binary path: %w", err)
+	}
+	binaryPath, err = filepath.EvalSymlinks(binaryPath)
+	if err != nil {
+		return fmt.Errorf("failed to resolve binary path: %w", err)
 	}
 
 	// Let user select

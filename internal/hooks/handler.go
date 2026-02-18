@@ -81,13 +81,14 @@ func HandleHookEvent(reader io.Reader, mgr *tmux.Manager) error {
 			return err
 		}
 	} else {
-		// Skip write if this agent's state hasn't changed
+		// Skip write if this agent's state hasn't changed, but still
+		// recompute the aggregate below so stale agents are cleaned up
+		// and the tmux window title stays current.
 		current, readErr := status.ReadAgentState(statusDir, sessionName, agentID)
-		if readErr == nil && current.State == string(state) {
-			return nil
-		}
-		if err := status.WriteAgentState(statusDir, sessionName, agentID, state); err != nil {
-			return err
+		if readErr != nil || current.State != string(state) {
+			if err := status.WriteAgentState(statusDir, sessionName, agentID, state); err != nil {
+				return err
+			}
 		}
 	}
 

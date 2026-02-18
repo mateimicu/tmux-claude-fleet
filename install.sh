@@ -41,7 +41,7 @@ verify_checksum() {
     fi
 
     local expected
-    expected="$(grep "$filename" "$checksums_file" | awk '{print $1}')"
+    expected="$(grep -F "$filename" "$checksums_file" | awk '{print $1}')"
     if [ -z "$expected" ]; then
         return 1
     fi

@@ -473,6 +473,30 @@ func TestSanitizeAgentID(t *testing.T) {
 	}
 }
 
+func TestSanitizeSessionName(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"normal name", "my-session", "my-session"},
+		{"path traversal", "../../etc/passwd", "passwd"},
+		{"slash in name", "foo/bar", "bar"},
+		{"dot-dot only", "..", "_"},
+		{"single dot", ".", "_"},
+		{"empty string", "", "_"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := sanitizeSessionName(tt.input)
+			if got != tt.want {
+				t.Errorf("sanitizeSessionName(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestWriteAgentState_PathTraversal(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "status-traversal-*")
 	if err != nil {

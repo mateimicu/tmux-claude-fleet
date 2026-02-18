@@ -17,13 +17,17 @@ import (
 func buildRepoFZFArgs(binaryPath string) []string {
 	quoted := "'" + strings.ReplaceAll(binaryPath, "'", "'\\''") + "'"
 	reloadCmd := fmt.Sprintf("%s list-repos --force-refresh", quoted)
+	// Escape parentheses for FZF's action parser, which uses ( and ) as delimiters
+	// in reload(...) and change-header(...) before the shell sees the string.
+	fzfSafeReloadCmd := strings.NewReplacer("(", "\\(", ")", "\\)").Replace(reloadCmd)
+	header := "↑↓ navigate | enter: select | ctrl-r: refresh | ctrl-c: cancel"
 	return []string{
 		"--prompt=📁 Select repository > ",
 		"--reverse",
 		"--border=rounded",
-		"--header=↑↓ navigate | enter: select | ctrl-r: refresh | ctrl-c: cancel",
+		"--header=" + header,
 		"--height=80%",
-		fmt.Sprintf("--bind=ctrl-r:reload(%s)+change-header(Refreshing repositories...)", reloadCmd),
+		fmt.Sprintf("--bind=ctrl-r:change-header(Refreshing repositories...)+reload(%s)+change-header(%s)", fzfSafeReloadCmd, header),
 	}
 }
 
@@ -111,26 +115,6 @@ func sessionLegend(showActiveOnly bool) string {
 	}
 	return "↑↓ navigate | enter: switch | ctrl-d: delete | ctrl-r: rename | " + toggleHint + " | ctrl-c: cancel\n" +
 		"Session: 🟢 active  ⚫ inactive | Claude: 🟢 Active  ❓ Waiting  💬 Ready  ⚠️ Error  ⚫ Stopped  ❔ Unknown"
-}
-
-// SelectSession shows FZF interface for session selection.
-// It re-prompts on toggle actions since the simplified API does not
-// expose filtering to the caller.
-func SelectSession(sessions []*types.SessionStatus) (*types.SessionStatus, error) {
-	for {
-		selection, err := SelectSessionWithAction(sessions, false)
-		if err != nil {
-			return nil, err
-		}
-		switch selection.Action {
-		case SessionActionCancel:
-			return nil, fmt.Errorf("selection cancelled")
-		case SessionActionToggleFilter:
-			continue
-		default:
-			return selection.Session, nil
-		}
-	}
 }
 
 // SelectSessionWithAction shows FZF interface for session selection with action support.
@@ -384,6 +368,7 @@ func runFZF(input string, args ...string) (string, error) {
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = os.Stderr
+	cmd.Env = filterFZFEnv(os.Environ())
 
 	if err := cmd.Run(); err != nil {
 		return "", err
