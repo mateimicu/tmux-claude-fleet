@@ -45,6 +45,18 @@ func TestParseRepoURL(t *testing.T) {
 			expectedSource: "local",
 			expectedRepo:   "myorg/myrepo",
 		},
+		{
+			name:           "Workspace URL",
+			url:            "workspace:my-project",
+			expectedSource: "workspace",
+			expectedRepo:   "my-project",
+		},
+		{
+			name:           "Workspace URL with dashes",
+			url:            "workspace:my-multi-repo-workspace",
+			expectedSource: "workspace",
+			expectedRepo:   "my-multi-repo-workspace",
+		},
 	}
 
 	for _, tt := range tests {
