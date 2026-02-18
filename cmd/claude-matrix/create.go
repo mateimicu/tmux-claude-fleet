@@ -129,7 +129,7 @@ func createRepoSession(cfg *types.Config, selected *types.Repository, sessionMgr
 	fmt.Fprintf(log.DebugW, "✓ Session created: %s\n", sessionName) //nolint:errcheck
 
 	if err := tmuxMgr.SwitchToSession(sessionName); err != nil {
-		fmt.Fprintf(log.WarnW, "⚠️  Failed to switch to session: %v\n", err) //nolint:errcheck
+		fmt.Fprintf(log.WarnW, "⚠️  Failed to switch to session: %v\n", err)                     //nolint:errcheck
 		fmt.Fprintf(log.WarnW, "You can attach manually with: tmux attach -t %s\n", sessionName) //nolint:errcheck
 	}
 
@@ -196,7 +196,7 @@ func createWorkspaceSession(cfg *types.Config, selected *types.Repository, sessi
 	fmt.Fprintf(log.DebugW, "✓ Workspace session created: %s\n", sessionName) //nolint:errcheck
 
 	if err := tmuxMgr.SwitchToSession(sessionName); err != nil {
-		fmt.Fprintf(log.WarnW, "⚠️  Failed to switch to session: %v\n", err) //nolint:errcheck
+		fmt.Fprintf(log.WarnW, "⚠️  Failed to switch to session: %v\n", err)                     //nolint:errcheck
 		fmt.Fprintf(log.WarnW, "You can attach manually with: tmux attach -t %s\n", sessionName) //nolint:errcheck
 	}
 
