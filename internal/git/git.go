@@ -31,21 +31,11 @@ func (m *Manager) Clone(url, path string) error {
 
 // CloneWithCache clones a repository using a local mirror cache for faster cloning
 func (m *Manager) CloneWithCache(url, path, cacheDir string) error {
-	mirrorPath := m.GetMirrorPath(url, cacheDir)
-
-	if !m.MirrorExists(mirrorPath) {
-		// Create new mirror
-		if err := m.createMirror(url, mirrorPath); err != nil {
-			return err
-		}
-	} else {
-		// Update existing mirror with latest commits
-		if err := m.updateMirror(mirrorPath); err != nil {
-			return err
-		}
+	if _, err := m.EnsureMirror(url, cacheDir); err != nil {
+		return err
 	}
 
-	// Clone using the mirror as reference
+	mirrorPath := m.GetMirrorPath(url, cacheDir)
 	return m.cloneWithReference(url, path, mirrorPath)
 }
 
