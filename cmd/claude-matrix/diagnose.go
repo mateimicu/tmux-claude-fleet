@@ -9,7 +9,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mateimicu/tmux-claude-matrix/internal/config"
 	"github.com/mateimicu/tmux-claude-matrix/internal/repos"
 )
 
@@ -25,14 +24,10 @@ func diagnoseCmd() *cobra.Command {
 }
 
 func runDiagnose(ctx context.Context) error {
+	cfg := configFromContext(ctx)
+
 	fmt.Println("🔍 Diagnosing tmux-claude-matrix configuration...")
 	fmt.Println()
-
-	// Load config
-	cfg, err := config.Load()
-	if err != nil {
-		return fmt.Errorf("❌ Failed to load config: %w", err)
-	}
 
 	fmt.Println("✓ Configuration loaded successfully")
 	fmt.Println()
@@ -43,6 +38,7 @@ func runDiagnose(ctx context.Context) error {
 	fmt.Printf("  Sessions directory: %s\n", cfg.SessionsDir)
 	fmt.Printf("  Cache directory: %s\n", cfg.CacheDir)
 	fmt.Printf("  Cache TTL: %s\n", cfg.CacheTTL)
+	fmt.Printf("  Debug mode: %v\n", cfg.Debug)
 	fmt.Println()
 
 	// Check local repos

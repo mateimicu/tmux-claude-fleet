@@ -8,7 +8,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mateimicu/tmux-claude-matrix/internal/config"
 	"github.com/mateimicu/tmux-claude-matrix/internal/fzf"
 	"github.com/mateimicu/tmux-claude-matrix/internal/repos"
 )
@@ -31,12 +30,9 @@ func listReposCmd() *cobra.Command {
 }
 
 func runListRepos(ctx context.Context, forceRefresh bool) error {
-	cfg, err := config.Load()
-	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
+	cfg := configFromContext(ctx)
 
-	sources, err := buildSources(ctx, cfg, io.Discard)
+	sources, err := buildSourcesWithWriter(ctx, cfg, io.Discard)
 	if err != nil {
 		return err
 	}
