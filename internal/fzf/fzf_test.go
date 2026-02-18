@@ -362,6 +362,44 @@ func TestPadToDisplayWidth(t *testing.T) {
 	}
 }
 
+func TestRepoTypeLabel(t *testing.T) {
+	tests := []struct {
+		name     string
+		repo     *types.Repository
+		expected string
+	}{
+		{
+			name:     "workspace repo",
+			repo:     &types.Repository{Source: "workspace", IsWorkspace: true},
+			expected: "📂 workspace",
+		},
+		{
+			name:     "github repo",
+			repo:     &types.Repository{Source: "github"},
+			expected: "🐙 github",
+		},
+		{
+			name:     "local repo",
+			repo:     &types.Repository{Source: "local"},
+			expected: "💻 local",
+		},
+		{
+			name:     "unknown source falls back to raw source",
+			repo:     &types.Repository{Source: "custom"},
+			expected: "custom",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := repoTypeLabel(tt.repo)
+			if result != tt.expected {
+				t.Errorf("repoTypeLabel() = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestFormatRepoLine(t *testing.T) {
 	tests := []struct {
 		name         string
