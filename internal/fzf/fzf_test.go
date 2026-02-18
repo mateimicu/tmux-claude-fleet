@@ -512,6 +512,13 @@ func TestParseFZFOutput(t *testing.T) {
 			wantKey:      "ctrl-t",
 			wantSelected: "",
 		},
+		{
+			name:         "ctrl-r pressed returns rename key",
+			output:       "ctrl-r\n 01  🟢  github  org/repo  my-session  🟢 Active  [my-session]\n",
+			expectedKeys: []string{"ctrl-d", "ctrl-t", "ctrl-r"},
+			wantKey:      "ctrl-r",
+			wantSelected: "01  🟢  github  org/repo  my-session  🟢 Active  [my-session]",
+		},
 	}
 
 	for _, tt := range tests {
@@ -546,6 +553,7 @@ func TestSessionActions_NoDuplicateValues(t *testing.T) {
 		SessionActionDelete,
 		SessionActionCancel,
 		SessionActionToggleFilter,
+		SessionActionRename,
 	} {
 		if values[action] {
 			t.Errorf("duplicate SessionAction value: %q", action)
@@ -638,13 +646,13 @@ func TestSessionLegend(t *testing.T) {
 		{
 			name:           "default view shows hide inactive hint",
 			showActiveOnly: false,
-			wantContains:   []string{"ctrl-t: hide inactive", "enter: switch", "ctrl-d: delete"},
+			wantContains:   []string{"ctrl-t: hide inactive", "enter: switch", "ctrl-d: delete", "ctrl-r: rename"},
 			wantNotContain: []string{"ctrl-t: show all"},
 		},
 		{
 			name:           "filtered view shows show all hint",
 			showActiveOnly: true,
-			wantContains:   []string{"ctrl-t: show all", "enter: switch", "ctrl-d: delete"},
+			wantContains:   []string{"ctrl-t: show all", "enter: switch", "ctrl-d: delete", "ctrl-r: rename"},
 			wantNotContain: []string{"ctrl-t: hide inactive"},
 		},
 	}
