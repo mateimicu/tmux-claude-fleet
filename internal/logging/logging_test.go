@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestNew(t *testing.T) {
+func TestLoggerWriters(t *testing.T) {
 	tests := []struct {
 		name       string
 		debug      bool
@@ -53,7 +53,11 @@ func TestNew(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var debugBuf, warnBuf bytes.Buffer
-			log := NewWithWriters(tt.debug, &debugBuf, &warnBuf)
+			debugW := io.Writer(&debugBuf)
+			if !tt.debug {
+				debugW = io.Discard
+			}
+			log := &Logger{DebugW: debugW, WarnW: &warnBuf}
 
 			if tt.writeDebug != "" {
 				fmt.Fprint(log.DebugW, tt.writeDebug)
@@ -73,7 +77,6 @@ func TestNew(t *testing.T) {
 }
 
 func TestNew_DefaultWriters(t *testing.T) {
-	// New(false) should have DebugW == io.Discard
 	log := New(false)
 	if log.DebugW == nil {
 		t.Fatal("DebugW should not be nil")
@@ -90,9 +93,58 @@ func TestNew_DefaultWriters(t *testing.T) {
 		t.Errorf("expected 4 bytes written, got %d", n)
 	}
 
-	// New(true) should have DebugW != io.Discard
 	log2 := New(true)
 	if log2.DebugW == io.Discard {
 		t.Error("DebugW should not be io.Discard when debug is true")
+	}
+}
+
+func TestDebugf(t *testing.T) {
+	tests := []struct {
+		name   string
+		debug  bool
+		format string
+		args   []interface{}
+		want   string
+	}{
+		{
+			name:   "debug on formats message",
+			debug:  true,
+			format: "found %d repos\n",
+			args:   []interface{}{42},
+			want:   "found 42 repos\n",
+		},
+		{
+			name:   "debug off discards message",
+			debug:  false,
+			format: "found %d repos\n",
+			args:   []interface{}{42},
+			want:   "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			debugW := io.Writer(&buf)
+			if !tt.debug {
+				debugW = io.Discard
+			}
+			log := &Logger{DebugW: debugW, WarnW: io.Discard}
+			log.Debugf(tt.format, tt.args...)
+			if got := buf.String(); got != tt.want {
+				t.Errorf("Debugf: got %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestWarnf(t *testing.T) {
+	var buf bytes.Buffer
+	log := &Logger{DebugW: io.Discard, WarnW: &buf}
+	log.Warnf("⚠️  failed: %v\n", "timeout")
+	want := "⚠️  failed: timeout\n"
+	if got := buf.String(); got != want {
+		t.Errorf("Warnf: got %q, want %q", got, want)
 	}
 }
