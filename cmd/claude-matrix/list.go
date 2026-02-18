@@ -119,6 +119,12 @@ func runList(_ context.Context) error {
 			}
 			// Continue loop to show updated list
 
+		case fzf.SessionActionRename:
+			if err := handleRenameAction(sessionMgr, tmuxMgr, selection.Session); err != nil {
+				fmt.Printf("⚠️  Failed to rename session: %v\n", err)
+			}
+			// Continue loop to show updated list
+
 		case fzf.SessionActionSwitch:
 			if err := handleSwitchAction(cfg, tmuxMgr, selection.Session); err != nil {
 				return err
@@ -200,5 +206,34 @@ func handleSwitchAction(cfg *types.Config, tmuxMgr *tmux.Manager, selected *type
 		fmt.Printf("You can attach manually with: tmux attach -t %s\n", selected.Session.Name)
 	}
 
+	return nil
+}
+
+func handleRenameAction(sessionMgr *session.Manager, tmuxMgr *tmux.Manager, selected *types.SessionStatus) error {
+	fmt.Printf("\n✏️  Rename session '%s' (current title: %q)\n", selected.Session.Name, selected.Session.Title)
+	fmt.Print("Enter new title (empty to cancel): ")
+
+	scanner := bufio.NewScanner(os.Stdin)
+	if !scanner.Scan() {
+		return nil
+	}
+	newTitle := strings.TrimSpace(scanner.Text())
+	if newTitle == "" {
+		fmt.Println("Rename cancelled.")
+		return nil
+	}
+
+	// Update title in session metadata
+	selected.Session.Title = newTitle
+	if err := sessionMgr.Save(selected.Session); err != nil {
+		return fmt.Errorf("failed to save session metadata: %w", err)
+	}
+
+	// Update tmux env var for status bar
+	if err := tmuxMgr.SetSessionEnv(selected.Session.Name, "@claude-matrix-title", newTitle); err != nil {
+		fmt.Printf("⚠️  Failed to update tmux env var: %v\n", err)
+	}
+
+	fmt.Printf("✓ Session '%s' renamed to '%s'\n\n", selected.Session.Name, newTitle)
 	return nil
 }
