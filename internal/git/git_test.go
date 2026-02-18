@@ -89,6 +89,64 @@ func TestUpdateMirror(t *testing.T) {
 	}
 }
 
+func TestEnsureMirror_CreatesNewMirror(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a source repo to mirror
+	sourceRepo := filepath.Join(tmpDir, "source")
+	if err := exec.Command("git", "init", "--bare", sourceRepo).Run(); err != nil {
+		t.Fatalf("failed to init source repo: %v", err)
+	}
+
+	cacheDir := filepath.Join(tmpDir, "cache")
+	m := New()
+
+	created, err := m.EnsureMirror("file://"+sourceRepo, cacheDir)
+	if err != nil {
+		t.Fatalf("EnsureMirror() error = %v", err)
+	}
+	if !created {
+		t.Error("EnsureMirror() created = false, want true for new mirror")
+	}
+
+	// Mirror directory should exist
+	mirrorPath := m.GetMirrorPath("file://"+sourceRepo, cacheDir)
+	if !m.MirrorExists(mirrorPath) {
+		t.Error("mirror should exist after EnsureMirror")
+	}
+}
+
+func TestEnsureMirror_UpdatesExistingMirror(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a source repo to mirror
+	sourceRepo := filepath.Join(tmpDir, "source")
+	if err := exec.Command("git", "init", "--bare", sourceRepo).Run(); err != nil {
+		t.Fatalf("failed to init source repo: %v", err)
+	}
+
+	cacheDir := filepath.Join(tmpDir, "cache")
+	m := New()
+
+	// First call creates the mirror
+	created, err := m.EnsureMirror("file://"+sourceRepo, cacheDir)
+	if err != nil {
+		t.Fatalf("first EnsureMirror() error = %v", err)
+	}
+	if !created {
+		t.Error("first EnsureMirror() created = false, want true")
+	}
+
+	// Second call should update, not create
+	created, err = m.EnsureMirror("file://"+sourceRepo, cacheDir)
+	if err != nil {
+		t.Fatalf("second EnsureMirror() error = %v", err)
+	}
+	if created {
+		t.Error("second EnsureMirror() created = true, want false for existing mirror")
+	}
+}
+
 func TestExtractRepoName(t *testing.T) {
 	tests := []struct {
 		name     string
