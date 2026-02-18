@@ -1,7 +1,7 @@
 # Implementation Spec: Debug Logging Configuration
 
 **PRD**: `docs/prd/debug-logging.md` (PR #56)
-**Branch**: `spec/debug-logging` (stacked on `prd/debug-logging`)
+**Status**: Draft
 
 ## Overview
 
@@ -9,37 +9,29 @@ Suppress progress/status output by default. Add a `Debug` flag (config file,
 env var, CLI flag) that restores verbose output. Warnings and errors always
 print regardless of debug mode.
 
-## Architecture
+The codebase already uses an `io.Writer` pattern in `buildSources()` and
+`GitHubSource.SetLogger()` — passing `os.Stdout` for verbose output or
+`io.Discard` to suppress. This spec extends that pattern globally through a
+shared logging helper.
 
-### Approach: `io.Writer`-based debug logger
+## 1. Config Layer
 
-The codebase already uses the `io.Writer` pattern in `GitHubSource.SetLogger()`
-and `buildSources()` — passing `os.Stdout` for verbose output or `io.Discard`
-to suppress. This spec extends that pattern globally through a shared debug
-writer rather than adding `if cfg.Debug` checks at every call site.
+### 1.1 Add `Debug` field — `pkg/types/types.go`
 
-A single `io.Writer` is resolved once at startup: `os.Stdout` when debug is on,
-`io.Discard` when off. All progress messages write to this writer. Warnings and
-errors continue writing directly to `os.Stdout`/`os.Stderr`.
+Add `Debug bool` to the `Config` struct. Default: `false`.
 
-## Component Changes
+### 1.2 Config file loading — `internal/config/config.go`
 
-### 1. Config struct — `pkg/types/types.go`
+- `defaults()`: set `Debug: false` (explicit, matches zero-value).
+- `applyConfigValue()`: add `case "DEBUG"` using the existing
+  `value == "1" || value == "true"` pattern.
 
-Add one field to `Config`:
+### 1.3 Env var loading — `internal/config/config.go`
 
-```go
-type Config struct {
-    // ... existing fields ...
-    Debug bool
-}
-```
+- `applyEnvOverrides()`: read `TMUX_CLAUDE_MATRIX_DEBUG`, apply same
+  boolean parsing as `GITHUB_ENABLED`.
 
-Default: `false`.
-
-### 2. Config loading — `internal/config/config.go`
-
-Three additions following existing patterns:
+### 1.4 Precedence
 
 | Layer | Key / Var | Values | Precedence |
 |-------|-----------|--------|------------|
@@ -47,192 +39,165 @@ Three additions following existing patterns:
 | Env var | `TMUX_CLAUDE_MATRIX_DEBUG` | `1`, `true` | Middle |
 | CLI flag | `--debug` / `-d` | boolean | Highest |
 
-- `defaults()` — `Debug: false` (already zero-value, but explicit).
-- `applyConfigValue()` — add `case "DEBUG"` using the existing
-  `value == "1" || value == "true"` pattern.
-- `applyEnvOverrides()` — add `TMUX_CLAUDE_MATRIX_DEBUG` check using the
-  same boolean pattern as `GITHUB_ENABLED`.
+The config file and env var are handled by `Load()` (file first, then env
+overrides). The CLI flag override happens at the Cobra level (Section 3).
 
-CLI flag override happens in the root command (see section 4), not in
-`config.Load()`, because Cobra flags are not available at config-load time.
+## 2. Logging Helper — `internal/logging/logging.go` (new package)
 
-### 3. Debug writer helper — `internal/logging/logging.go` (new package)
+Minimal package providing a `Logger` with two writers:
 
-Minimal package — one function that resolves the writer:
-
-```
+```go
 package logging
 
-func DebugWriter(debug bool) io.Writer
+type Logger struct {
+    Debug io.Writer   // writes only when debug enabled; io.Discard otherwise
+    Warn  io.Writer   // always writes (os.Stderr)
+}
+
+func New(debug bool) *Logger
 ```
 
-**Contract**: Returns `os.Stdout` if `debug` is `true`, `io.Discard` otherwise.
+- `Debug` → `os.Stdout` when debug is true, `io.Discard` when false.
+- `Warn` → `os.Stderr` always.
+- Callers use `fmt.Fprintf(log.Debug, ...)` for progress messages and
+  `fmt.Fprintf(log.Warn, ...)` for warnings/errors.
+- No interfaces, no levels, no structured logging. Two writers.
 
-This keeps the decision in one place. Commands call it once and pass the
-resulting `io.Writer` to `fmt.Fprintf(debugW, ...)` for progress messages.
+The coding expert may optionally add `Debugf`/`Warnf` convenience methods
+if it reduces boilerplate.
 
-No other functions needed — `fmt.Fprintf` with `io.Writer` is the logging
-mechanism. No custom logger struct, no log levels.
+## 3. CLI Flag Integration — `cmd/claude-matrix/main.go`
 
-### 4. Root command — `cmd/claude-matrix/main.go`
-
-Add a persistent flag and `PersistentPreRunE` to the root command:
+### 3.1 Persistent flag
 
 ```
 rootCmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug logging")
 ```
 
-**`PersistentPreRunE` responsibilities**:
-1. Load config via `config.Load()`.
-2. If `--debug` flag was explicitly set by the user, override `cfg.Debug`.
-3. Store `cfg` in the command context (using a context key) so subcommands
-   can retrieve it without calling `config.Load()` again.
+### 3.2 `PersistentPreRunE`
 
-**Context key**: Define an unexported context key type in `main.go`:
+Add a `PersistentPreRunE` on `rootCmd` that:
+1. Loads config via `config.Load()`.
+2. If `--debug` flag was explicitly set (`cmd.Flags().Changed("debug")`),
+   overrides `cfg.Debug` with the flag value.
+3. Creates `logging.New(cfg.Debug)`.
+4. Stores `cfg` and the logger in the command's context using context key
+   types.
 
-```
-type ctxKey string
-const configKey ctxKey = "config"
-```
+### 3.3 Context helpers
 
-Helper functions in `main.go`:
-- `configFromContext(ctx context.Context) *types.Config` — retrieves config.
+Define unexported context key types and helper functions (in `main.go` or
+a separate `context.go` — coding expert decides):
 
-Subcommands switch from calling `config.Load()` directly to reading from
-context.
-
-### 5. Command changes — `cmd/claude-matrix/*.go`
-
-Each command's `run*` function changes:
-
-1. **Get config from context** instead of calling `config.Load()`.
-2. **Resolve debug writer** via `logging.DebugWriter(cfg.Debug)`.
-3. **Replace progress `fmt.Print*` calls** with `fmt.Fprintf(debugW, ...)`.
-4. **Keep warning/error prints unchanged** — they stay as direct
-   `fmt.Printf` / `fmt.Fprintln(os.Stderr, ...)`.
-
-#### `create.go`
-
-Progress messages to route through debug writer:
-- `"🔍 Discovering repositories..."`
-- `"✓ Found %d repositories"`
-- `"📦 Repository already exists at %s"`
-- `"📦 Cloning %s (using cache for faster cloning)..."`
-- `"✓ Clone complete"`
-- `"🚀 Creating tmux session '%s'..."`
-- `"✓ Session created: %s"`
-- Workspace equivalents: `"📦 Setting up workspace..."`, clone status lines
-
-Warning/error messages that remain always-visible:
-- `"⚠️  Failed to save session metadata: %v"`
-- `"⚠️  Failed to set session title env: %v"`
-- `"⚠️  Failed to switch to session: %v"`
-- `"You can attach manually with: tmux attach -t %s"`
-
-#### `sources.go`
-
-`buildSources()` already accepts an `io.Writer` parameter. No signature change.
-Callers pass the debug writer instead of hardcoded `os.Stdout`/`io.Discard`.
-
-The `"⚠️  GitHub authentication not found"` message is a warning — change its
-write target from `logger` to `os.Stdout` (always visible). The remaining
-GitHub integration status lines stay on `logger` (debug-only).
-
-#### `diagnose.go`
-
-`diagnose` is a diagnostic command — all its output is intentional and
-informational. Its messages stay always-visible (no change to existing prints).
-
-One addition: report the effective debug mode in the configuration section:
-```
-  Debug mode: true/false
+```go
+func configFromContext(ctx context.Context) *types.Config
+func loggerFromContext(ctx context.Context) *logging.Logger
 ```
 
-#### `refresh.go`
+Subcommands retrieve config and logger from context instead of calling
+`config.Load()` directly.
 
-Progress messages to route through debug writer:
-- `"🔄 Refreshing repository cache..."`
-- `"✓ Cache refreshed with %d repositories"`
-- `"📁 Cache location: %s"`
-- `"⏰ Cache TTL: %s"`
+## 4. Command-Level Changes
 
-Warning that remains always-visible:
-- `"⚠️  Failed to clear cache: %v"`
+Each command switches from direct `fmt.Print*` to using the logger's writers.
 
-#### `list.go`
+### 4.1 `create.go`
 
-Most output here is interactive UI (prompts, confirmation, FZF). These are
-user-facing and stay always-visible.
+- Get config and logger from context (remove `config.Load()` call).
+- Pass `log.Debug` to `buildSources()`.
+- Progress messages → `log.Debug`:
+  - `"🔍 Discovering repositories..."`
+  - `"✓ Found %d repositories"`
+  - `"📦 Repository already exists at %s"`
+  - `"📦 Cloning %s (using cache for faster cloning)..."`
+  - `"✓ Clone complete"`
+  - `"🚀 Creating tmux session '%s'..."`
+  - `"✓ Session created: %s"`
+  - Workspace equivalents
+- Warnings → `log.Warn` (always visible):
+  - `"⚠️  Failed to save session metadata: %v"`
+  - `"⚠️  Failed to set session title env: %v"`
+  - `"⚠️  Failed to switch to session: %v"`
+  - `"You can attach manually with: tmux attach -t %s"`
 
-Progress messages to route through debug writer:
-- `"🚀 Switching to session '%s'..."`
-- `"✓ Session '%s' deleted successfully!"`
+### 4.2 `sources.go`
 
-Warning/error messages that remain always-visible:
-- `"⚠️  Failed to delete session: %v"`
-- `"⚠️  Session not active, recreating..."`
-- `"⚠️  Failed to switch to session: %v"`
-- `"⚠️  Failed to set session title: %v"`
-- `"You can attach manually with: tmux attach -t %s"`
+`buildSources()` already accepts an `io.Writer`. No signature change needed.
+Callers pass the debug writer.
 
-#### `list_repos.go`
+The `"⚠️ GitHub authentication not found"` message is a warning — the coding
+expert should ensure it always prints (either change its write target from
+`logger` to stderr, or have `buildSources()` accept the full `Logger`).
 
-Already uses `io.Discard` for `buildSources()`. No change needed — this
-command outputs FZF-formatted lines only.
+### 4.3 `refresh.go`
 
-### 6. `GitHubSource` logger — `internal/repos/github.go`
+- Get config and logger from context.
+- Progress → `log.Debug`: `"🔄 Refreshing..."`, `"✓ Cache refreshed..."`,
+  cache location/TTL.
+- Warning → `log.Warn`: `"⚠️ Failed to clear cache"`.
+- Pass `log.Debug` to `buildSources()`.
 
-No changes to `GitHubSource` itself. The `SetLogger()` / `io.Writer` pattern
-already works. The debug writer is passed through `buildSources()` which calls
-`ghSource.SetLogger(logger)`.
+### 4.4 `diagnose.go`
 
-## Data Flow
+- `diagnose` is a diagnostic command — all its output is intentional.
+  Existing messages stay always-visible (no routing through debug writer).
+- **Add one line** to the configuration section: `"  Debug mode: true/false"`.
+
+### 4.5 `list.go`
+
+- Get config and logger from context.
+- Progress messages → `log.Debug`.
+- Warnings → `log.Warn`.
+- Interactive UI prompts stay always-visible.
+
+### 4.6 `list_repos.go`
+
+- Already uses `io.Discard` for `buildSources()`. No functional change.
+- Get config from context instead of calling `config.Load()`.
+
+### 4.7 Other commands
+
+`rename.go`, `hook_handler.go`, `setup_hooks.go`, `remove_hooks.go`,
+`version.go` — retrieve config from context. Minimal or no logging changes.
+
+## 5. Data Flow
 
 ```
-CLI startup
+CLI invocation
   │
-  ├── rootCmd.PersistentPreRunE
-  │     ├── config.Load()          → cfg.Debug from file + env
-  │     ├── --debug flag check     → override cfg.Debug if set
-  │     └── store cfg in context
+  ▼
+rootCmd.PersistentPreRunE
+  ├── config.Load()           → cfg.Debug from file + env
+  ├── --debug flag check      → override cfg.Debug if set
+  ├── logging.New(cfg.Debug)  → Logger{Debug: stdout|discard, Warn: stderr}
+  └── store cfg + logger in context
   │
-  └── subcommand.RunE
-        ├── cfg := configFromContext(ctx)
-        ├── debugW := logging.DebugWriter(cfg.Debug)
-        ├── fmt.Fprintf(debugW, "progress...")   → visible only if debug
-        ├── fmt.Printf("⚠️ warning...")          → always visible
-        └── buildSources(ctx, cfg, debugW)
-              └── ghSource.SetLogger(debugW)
+  ▼
+subcommand.RunE
+  ├── cfg := configFromContext(ctx)
+  ├── log := loggerFromContext(ctx)
+  ├── fmt.Fprintf(log.Debug, "progress...")  → visible only if debug
+  ├── fmt.Fprintf(log.Warn,  "warning...")   → always visible
+  └── buildSources(ctx, cfg, log.Debug)
+        └── ghSource.SetLogger(log.Debug)
 ```
 
-## Precedence Resolution
+## 6. Test Boundaries
 
-Precedence is handled in two stages:
+### Config tests — `internal/config/config_test.go`
 
-1. **`config.Load()`** — file value loaded first, then env var overwrites it.
-   This matches the existing pattern (`applyEnvOverrides` runs after
-   `loadFromFile`).
-2. **`PersistentPreRunE`** — CLI flag overwrites whatever `config.Load()`
-   returned. Only override if the flag was explicitly passed (use Cobra's
-   `cmd.Flags().Changed("debug")` to distinguish "not passed" from "passed
-   as false").
-
-## Test Boundaries
-
-### Config tests — `internal/config/config_test.go` (new file)
-
-Table-driven tests covering:
+Table-driven tests:
 - Default `Debug` is `false`.
-- Config file `DEBUG=1` sets `Debug` to `true`.
-- Env var `TMUX_CLAUDE_MATRIX_DEBUG=true` overrides config file `DEBUG=0`.
-- Env var takes effect when no config file is present.
+- Config file `DEBUG=1` → `Debug` is `true`.
+- Env var `TMUX_CLAUDE_MATRIX_DEBUG=true` overrides config file.
+- Env var works when no config file present.
 
-### Logging tests — `internal/logging/logging_test.go` (new file)
+### Logging tests — `internal/logging/logging_test.go`
 
-- `DebugWriter(true)` returns `os.Stdout`.
-- `DebugWriter(false)` returns `io.Discard`.
+- `New(false).Debug` discards output; `New(false).Warn` writes.
+- `New(true).Debug` writes; `New(true).Warn` writes.
 
-### CLI flag tests — `cmd/claude-matrix/main_test.go` or integration test
+### CLI flag tests
 
 - `--debug` flag sets `cfg.Debug` to `true`.
 - `--debug` overrides env var and config file.
@@ -240,27 +205,28 @@ Table-driven tests covering:
 
 ### Behavior verification
 
-- With debug off: progress messages do not appear on stdout.
-- With debug on: progress messages appear on stdout.
-- Warnings/errors always appear regardless of debug mode.
+- Debug off: progress messages absent from stdout.
+- Debug on: progress messages present on stdout.
+- Warnings/errors always present regardless of debug mode.
 
-## Files Changed (summary)
+## 7. Files Changed
 
 | File | Change |
 |------|--------|
 | `pkg/types/types.go` | Add `Debug bool` to `Config` |
 | `internal/config/config.go` | Add `DEBUG` config key + env var |
-| `internal/logging/logging.go` | New — `DebugWriter()` function |
-| `internal/logging/logging_test.go` | New — tests for `DebugWriter()` |
 | `internal/config/config_test.go` | New — tests for debug config loading |
-| `cmd/claude-matrix/main.go` | Add `--debug` flag, `PersistentPreRunE`, context helpers |
-| `cmd/claude-matrix/create.go` | Use debug writer for progress messages |
-| `cmd/claude-matrix/sources.go` | Move warning to always-visible; callers pass debug writer |
+| `internal/logging/logging.go` | New — `Logger` with `Debug`/`Warn` writers |
+| `internal/logging/logging_test.go` | New — tests for `Logger` |
+| `cmd/claude-matrix/main.go` | `--debug` flag, `PersistentPreRunE`, context helpers |
+| `cmd/claude-matrix/create.go` | Use logger for progress/warnings |
+| `cmd/claude-matrix/sources.go` | Callers pass debug writer; warning always visible |
 | `cmd/claude-matrix/diagnose.go` | Report debug mode in output |
-| `cmd/claude-matrix/refresh.go` | Use debug writer for progress messages |
-| `cmd/claude-matrix/list.go` | Use debug writer for progress messages |
+| `cmd/claude-matrix/refresh.go` | Use logger for progress/warnings |
+| `cmd/claude-matrix/list.go` | Use logger for progress/warnings |
+| `cmd/claude-matrix/list_repos.go` | Get config from context |
 
-## Out of Scope
+## 8. Out of Scope
 
-Per PRD: no structured logging, no log-to-file, no multi-level verbosity, no
-timestamps/caller info, no changes to git command passthrough.
+Per PRD: no structured logging, no log-to-file, no multi-level verbosity,
+no timestamps/caller info, no changes to git command passthrough.
