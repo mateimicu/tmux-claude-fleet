@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/mateimicu/tmux-claude-matrix/internal/fzf"
+	"github.com/mateimicu/tmux-claude-matrix/internal/logging"
 	"github.com/mateimicu/tmux-claude-matrix/internal/repos"
 )
 
@@ -32,7 +33,9 @@ func listReposCmd() *cobra.Command {
 func runListRepos(ctx context.Context, forceRefresh bool) error {
 	cfg := configFromContext(ctx)
 
-	sources, err := buildSourcesWithWriter(ctx, cfg, io.Discard)
+	// list-repos is consumed by FZF — suppress all non-data output
+	log := &logging.Logger{DebugW: io.Discard, WarnW: io.Discard}
+	sources, err := buildSources(ctx, cfg, log)
 	if err != nil {
 		return err
 	}
