@@ -81,6 +81,8 @@ const (
 	SessionActionCancel SessionAction = "cancel"
 	// SessionActionToggleFilter indicates toggling the active-only filter
 	SessionActionToggleFilter SessionAction = "toggle_filter"
+	// SessionActionRename indicates renaming a session's title
+	SessionActionRename SessionAction = "rename"
 )
 
 // SessionSelection represents the result of session selection
@@ -107,7 +109,7 @@ func sessionLegend(showActiveOnly bool) string {
 	if showActiveOnly {
 		toggleHint = "ctrl-t: show all"
 	}
-	return "↑↓ navigate | enter: switch | ctrl-d: delete | " + toggleHint + " | ctrl-c: cancel\n" +
+	return "↑↓ navigate | enter: switch | ctrl-d: delete | ctrl-r: rename | " + toggleHint + " | ctrl-c: cancel\n" +
 		"Session: 🟢 active  ⚫ inactive | Claude: 🟢 Active  ❓ Waiting  💬 Ready  ⚠️ Error  ⚫ Stopped  ❔ Unknown"
 }
 
@@ -155,7 +157,7 @@ func SelectSessionWithAction(sessions []*types.SessionStatus, showActiveOnly boo
 	legend := sessionLegend(showActiveOnly)
 	key, selected, err := runFZFWithExpect(
 		strings.Join(allLines, "\n"),
-		[]string{"ctrl-d", "ctrl-t"},
+		[]string{"ctrl-d", "ctrl-t", "ctrl-r"},
 		"--prompt=🚀 Select session > ",
 		"--reverse",
 		"--border=rounded",
@@ -178,9 +180,14 @@ func SelectSessionWithAction(sessions []*types.SessionStatus, showActiveOnly boo
 	// Find original session
 	for _, sess := range sessions {
 		if sess.Session.Name == name {
-			action := SessionActionSwitch
-			if key == "ctrl-d" {
+			var action SessionAction
+			switch key {
+			case "ctrl-d":
 				action = SessionActionDelete
+			case "ctrl-r":
+				action = SessionActionRename
+			default:
+				action = SessionActionSwitch
 			}
 			return &SessionSelection{
 				Session: sess,
