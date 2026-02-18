@@ -110,6 +110,12 @@ func runList(ctx context.Context) error {
 			showActiveOnly = !showActiveOnly
 			continue
 
+		case fzf.SessionActionTools:
+			if err := handleToolsAction(ctx, cfg); err != nil {
+				fmt.Printf("⚠️  Tools action failed: %v\n", err)
+			}
+			continue
+
 		case fzf.SessionActionDelete:
 			if err := handleDeleteAction(sessionMgr, tmuxMgr, selection.Session, log); err != nil {
 				log.Warnf("⚠️  Failed to delete session: %v\n", err)
@@ -132,6 +138,20 @@ func runList(ctx context.Context) error {
 		default:
 			return fmt.Errorf("session selection cancelled")
 		}
+	}
+}
+
+func handleToolsAction(ctx context.Context, cfg *types.Config) error {
+	action, err := fzf.SelectToolAction()
+	if err != nil {
+		return err
+	}
+
+	switch action {
+	case fzf.ToolActionPrefillCache:
+		return runPrefillCache(ctx, cfg)
+	default:
+		return nil
 	}
 }
 
