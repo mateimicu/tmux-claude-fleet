@@ -216,6 +216,7 @@ func formatSessionTable(sessions []*types.SessionStatus) (string, []string) {
 		tmux    string
 		source  string
 		repo    string
+		title   string
 		claude  string
 		session string
 	}
@@ -224,6 +225,7 @@ func formatSessionTable(sessions []*types.SessionStatus) (string, []string) {
 	var rows []rowData
 	maxSourceW := displayWidth("SOURCE")
 	maxRepoW := displayWidth("REPOSITORY")
+	maxTitleW := displayWidth("TITLE")
 	maxClaudeW := displayWidth("CLAUDE")
 
 	for idx, s := range sessions {
@@ -236,10 +238,10 @@ func formatSessionTable(sessions []*types.SessionStatus) (string, []string) {
 			tmux = "🟢"
 		}
 
-		// Use title if available, otherwise fall back to orgRepo
-		displayName := orgRepo
-		if s.Session.Title != "" {
-			displayName = s.Session.Title
+		// Title column: show Session.Title, fall back to session Name
+		title := s.Session.Title
+		if title == "" {
+			title = s.Session.Name
 		}
 
 		claudeCol := claudeIndicator + " " + claudeLabel
@@ -248,7 +250,8 @@ func formatSessionTable(sessions []*types.SessionStatus) (string, []string) {
 			num:     fmt.Sprintf("%0*d", paddingWidth, idx+1),
 			tmux:    tmux,
 			source:  source,
-			repo:    displayName,
+			repo:    orgRepo,
+			title:   title,
 			claude:  claudeCol,
 			session: s.Session.Name,
 		}
@@ -257,8 +260,11 @@ func formatSessionTable(sessions []*types.SessionStatus) (string, []string) {
 		if w := displayWidth(source); w > maxSourceW {
 			maxSourceW = w
 		}
-		if w := displayWidth(displayName); w > maxRepoW {
+		if w := displayWidth(orgRepo); w > maxRepoW {
 			maxRepoW = w
+		}
+		if w := displayWidth(title); w > maxTitleW {
+			maxTitleW = w
 		}
 		if w := displayWidth(claudeCol); w > maxClaudeW {
 			maxClaudeW = w
@@ -266,11 +272,12 @@ func formatSessionTable(sessions []*types.SessionStatus) (string, []string) {
 	}
 
 	// Build header
-	header := fmt.Sprintf(" %s  %s  %s  %s  %s  %s",
+	header := fmt.Sprintf(" %s  %s  %s  %s  %s  %s  %s",
 		padToDisplayWidth("#", paddingWidth),
 		padToDisplayWidth("TMUX", 4),
 		padToDisplayWidth("SOURCE", maxSourceW),
 		padToDisplayWidth("REPOSITORY", maxRepoW),
+		padToDisplayWidth("TITLE", maxTitleW),
 		padToDisplayWidth("CLAUDE", maxClaudeW),
 		"SESSION",
 	)
@@ -278,11 +285,12 @@ func formatSessionTable(sessions []*types.SessionStatus) (string, []string) {
 	// Build data lines
 	var lines []string
 	for _, r := range rows {
-		line := fmt.Sprintf(" %s  %s  %s  %s  %s  [%s]",
+		line := fmt.Sprintf(" %s  %s  %s  %s  %s  %s  [%s]",
 			r.num,
 			padToDisplayWidth(r.tmux, 4),
 			padToDisplayWidth(r.source, maxSourceW),
 			padToDisplayWidth(r.repo, maxRepoW),
+			padToDisplayWidth(r.title, maxTitleW),
 			padToDisplayWidth(r.claude, maxClaudeW),
 			r.session,
 		)
