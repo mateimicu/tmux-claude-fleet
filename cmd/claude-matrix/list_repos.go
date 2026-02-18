@@ -59,8 +59,10 @@ func runListRepos(ctx context.Context, forceRefresh bool) error {
 		return fmt.Errorf("failed to discover repositories: %w", err)
 	}
 
-	for _, repo := range repoList {
-		fmt.Println(fzf.FormatRepoLine(repo)) //nolint:errcheck // stdout write failure is unrecoverable
+	header, lines := fzf.FormatRepoTable(repoList)
+	fmt.Println(header) //nolint:errcheck // stdout write failure is unrecoverable
+	for _, line := range lines {
+		fmt.Println(line) //nolint:errcheck // stdout write failure is unrecoverable
 	}
 
 	return nil

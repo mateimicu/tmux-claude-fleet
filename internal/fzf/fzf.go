@@ -22,6 +22,7 @@ func buildRepoFZFArgs(binaryPath string) []string {
 		"--reverse",
 		"--border=rounded",
 		"--header=↑↓ navigate | enter: select | ctrl-r: refresh | ctrl-c: cancel",
+		"--header-lines=1",
 		"--height=80%",
 		fmt.Sprintf("--bind=ctrl-r:reload(%s)+change-header(Refreshing repositories...)", reloadCmd),
 	}
@@ -34,14 +35,14 @@ func SelectRepository(repos []*types.Repository, binaryPath string) (*types.Repo
 		return nil, fmt.Errorf("no repositories found")
 	}
 
-	var lines []string
-	for _, repo := range repos {
-		line := FormatRepoLine(repo)
-		lines = append(lines, line)
-	}
+	// Format repos as aligned table
+	headerLine, lines := FormatRepoTable(repos)
+
+	// Prepend header line so FZF can freeze it with --header-lines=1
+	allLines := append([]string{headerLine}, lines...)
 
 	args := buildRepoFZFArgs(binaryPath)
-	selected, err := runFZF(strings.Join(lines, "\n"), args...)
+	selected, err := runFZF(strings.Join(allLines, "\n"), args...)
 	if err != nil {
 		return nil, err
 	}
@@ -278,17 +279,6 @@ func FormatRepoTable(repos []*types.Repository) (string, []string) {
 	}
 
 	return header, lines
-}
-
-// FormatRepoLine formats a repository as a single line for FZF display.
-func FormatRepoLine(r *types.Repository) string {
-	if r.IsWorkspace {
-		return fmt.Sprintf("workspace: %s - %s [workspace:%s]", r.Name, r.Description, r.Name)
-	}
-	if r.Description != "" {
-		return fmt.Sprintf("%s: %s - %s [%s]", r.Source, r.Name, r.Description, r.URL)
-	}
-	return fmt.Sprintf("%s: %s [%s]", r.Source, r.Name, r.URL)
 }
 
 // formatSessionTable formats all sessions as an aligned table.
