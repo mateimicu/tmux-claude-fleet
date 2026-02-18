@@ -214,6 +214,72 @@ func repoTypeLabel(repo *types.Repository) string {
 	}
 }
 
+// FormatRepoTable formats all repositories as an aligned table.
+// Returns a header line and data lines with columns padded to align.
+// Each data line ends with [identifier] for extractURL compatibility.
+func FormatRepoTable(repos []*types.Repository) (string, []string) {
+	type rowData struct {
+		typeCol    string
+		name       string
+		desc       string
+		identifier string
+	}
+
+	// Pre-compute row data and track max column widths
+	var rows []rowData
+	maxTypeW := displayWidth("TYPE")
+	maxNameW := displayWidth("ORG/REPO")
+	maxDescW := displayWidth("DESCRIPTION")
+
+	for _, repo := range repos {
+		typeLabel := repoTypeLabel(repo)
+
+		identifier := repo.URL
+		if repo.IsWorkspace {
+			identifier = "workspace:" + repo.Name
+		}
+
+		row := rowData{
+			typeCol:    typeLabel,
+			name:       repo.Name,
+			desc:       repo.Description,
+			identifier: identifier,
+		}
+		rows = append(rows, row)
+
+		if w := displayWidth(typeLabel); w > maxTypeW {
+			maxTypeW = w
+		}
+		if w := displayWidth(repo.Name); w > maxNameW {
+			maxNameW = w
+		}
+		if w := displayWidth(repo.Description); w > maxDescW {
+			maxDescW = w
+		}
+	}
+
+	// Build header — trailing space matches the space before [identifier] in data lines
+	header := fmt.Sprintf(" %s  %s  %s ",
+		padToDisplayWidth("TYPE", maxTypeW),
+		padToDisplayWidth("ORG/REPO", maxNameW),
+		padToDisplayWidth("DESCRIPTION", maxDescW),
+	)
+
+	// Build data lines
+	var lines []string
+	for _, r := range rows {
+		line := fmt.Sprintf(" %s  %s  %s [%s]",
+			padToDisplayWidth(r.typeCol, maxTypeW),
+			padToDisplayWidth(r.name, maxNameW),
+			padToDisplayWidth(r.desc, maxDescW),
+			r.identifier,
+		)
+		lines = append(lines, line)
+	}
+
+	return header, lines
+}
+
 // FormatRepoLine formats a repository as a single line for FZF display.
 func FormatRepoLine(r *types.Repository) string {
 	if r.IsWorkspace {
