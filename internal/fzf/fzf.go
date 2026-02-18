@@ -199,6 +199,21 @@ func SelectSessionWithAction(sessions []*types.SessionStatus, showActiveOnly boo
 	return nil, fmt.Errorf("selected session not found")
 }
 
+// repoTypeLabel returns the emoji+label string for a repository's source type.
+func repoTypeLabel(repo *types.Repository) string {
+	if repo.IsWorkspace {
+		return "📂 workspace"
+	}
+	switch repo.Source {
+	case "github":
+		return "🐙 github"
+	case "local":
+		return "💻 local"
+	default:
+		return repo.Source
+	}
+}
+
 // FormatRepoLine formats a repository as a single line for FZF display.
 func FormatRepoLine(r *types.Repository) string {
 	if r.IsWorkspace {
