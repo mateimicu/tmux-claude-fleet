@@ -24,13 +24,19 @@ const (
 
 // configFromContext retrieves the Config from the command context.
 func configFromContext(ctx context.Context) *types.Config {
-	cfg, _ := ctx.Value(configKey).(*types.Config)
+	cfg, ok := ctx.Value(configKey).(*types.Config)
+	if !ok {
+		return nil
+	}
 	return cfg
 }
 
 // loggerFromContext retrieves the Logger from the command context.
 func loggerFromContext(ctx context.Context) *logging.Logger {
-	log, _ := ctx.Value(loggerKey).(*logging.Logger)
+	log, ok := ctx.Value(loggerKey).(*logging.Logger)
+	if !ok {
+		return nil
+	}
 	return log
 }
 
@@ -55,8 +61,10 @@ It helps you quickly create development environments for your repositories.`,
 
 			// CLI flag overrides config/env when explicitly set
 			if cmd.Flags().Changed("debug") {
-				debugFlag, _ := cmd.Flags().GetBool("debug")
-				cfg.Debug = debugFlag
+				debugFlag, err := cmd.Flags().GetBool("debug")
+				if err == nil {
+					cfg.Debug = debugFlag
+				}
 			}
 
 			log := logging.New(cfg.Debug)

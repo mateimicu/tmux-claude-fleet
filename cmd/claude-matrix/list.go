@@ -193,7 +193,7 @@ func handleSwitchAction(cfg *types.Config, tmuxMgr *tmux.Manager, selected *type
 	}
 
 	if err := tmuxMgr.SwitchToSession(selected.Session.Name); err != nil {
-		fmt.Fprintf(log.WarnW, "⚠️  Failed to switch to session: %v\n", err) //nolint:errcheck
+		fmt.Fprintf(log.WarnW, "⚠️  Failed to switch to session: %v\n", err)                               //nolint:errcheck
 		fmt.Fprintf(log.WarnW, "You can attach manually with: tmux attach -t %s\n", selected.Session.Name) //nolint:errcheck
 	}
 
