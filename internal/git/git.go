@@ -49,6 +49,25 @@ func (m *Manager) CloneWithCache(url, path, cacheDir string) error {
 	return m.cloneWithReference(url, path, mirrorPath)
 }
 
+// EnsureMirror creates a new mirror if one doesn't exist, or updates (fetch --prune)
+// an existing mirror. Returns created=true if a new mirror was created, created=false
+// if an existing mirror was updated.
+func (m *Manager) EnsureMirror(url, cacheDir string) (created bool, err error) {
+	mirrorPath := m.GetMirrorPath(url, cacheDir)
+
+	if !m.MirrorExists(mirrorPath) {
+		if err := m.createMirror(url, mirrorPath); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+
+	if err := m.updateMirror(mirrorPath); err != nil {
+		return false, err
+	}
+	return false, nil
+}
+
 // GetMirrorPath returns the path where the mirror cache should be stored
 func (m *Manager) GetMirrorPath(url, cacheDir string) string {
 	// Extract org/repo and convert to filesystem-safe name
