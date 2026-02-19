@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 
 	"github.com/mateimicu/tmux-claude-matrix/internal/git"
+	"github.com/mateimicu/tmux-claude-matrix/internal/logging"
 	"github.com/mateimicu/tmux-claude-matrix/internal/repos"
 	"github.com/mateimicu/tmux-claude-matrix/pkg/types"
 )
@@ -39,7 +39,7 @@ func flattenRepoURLs(repoList []*types.Repository) []string {
 // mirror caches for each one.
 func runPrefillCache(ctx context.Context, cfg *types.Config) error {
 	// Build sources (suppress log output during pre-fill)
-	sources, err := buildSources(ctx, cfg, io.Discard)
+	sources, err := buildSources(ctx, cfg, logging.New(false))
 	if err != nil {
 		return err
 	}
