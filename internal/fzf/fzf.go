@@ -84,6 +84,8 @@ const (
 	SessionActionToggleFilter SessionAction = "toggle_filter"
 	// SessionActionRename indicates renaming a session's title
 	SessionActionRename SessionAction = "rename"
+	// SessionActionTools indicates opening the tools sub-menu
+	SessionActionTools SessionAction = "tools"
 )
 
 // SessionSelection represents the result of session selection
@@ -110,7 +112,7 @@ func sessionLegend(showActiveOnly bool) string {
 	if showActiveOnly {
 		toggleHint = "ctrl-t: show all"
 	}
-	return "↑↓ navigate | enter: switch | ctrl-d: delete | ctrl-r: rename | " + toggleHint + " | ctrl-c: cancel\n" +
+	return "↑↓ navigate | enter: switch | ctrl-d: delete | ctrl-r: rename | " + toggleHint + " | ctrl-s: tools | ctrl-c: cancel\n" +
 		"Session: 🟢 active  ⚫ inactive | Claude: 🟢 Active  ❓ Waiting  💬 Ready  ⚠️ Error  ⚫ Stopped  ❔ Unknown"
 }
 
@@ -126,7 +128,7 @@ func SelectSession(sessions []*types.SessionStatus) (*types.SessionStatus, error
 		switch selection.Action {
 		case SessionActionCancel:
 			return nil, fmt.Errorf("selection cancelled")
-		case SessionActionToggleFilter:
+		case SessionActionToggleFilter, SessionActionTools:
 			continue
 		default:
 			return selection.Session, nil
@@ -158,7 +160,7 @@ func SelectSessionWithAction(sessions []*types.SessionStatus, showActiveOnly boo
 	legend := sessionLegend(showActiveOnly)
 	key, selected, err := runFZFWithExpect(
 		strings.Join(allLines, "\n"),
-		[]string{"ctrl-d", "ctrl-t", "ctrl-r"},
+		[]string{"ctrl-d", "ctrl-t", "ctrl-r", "ctrl-s"},
 		"--prompt=🚀 Select session > ",
 		"--reverse",
 		"--border=rounded",
@@ -173,6 +175,11 @@ func SelectSessionWithAction(sessions []*types.SessionStatus, showActiveOnly boo
 	// ctrl-t toggles the active-only filter; no session needed
 	if key == "ctrl-t" {
 		return &SessionSelection{Action: SessionActionToggleFilter}, nil
+	}
+
+	// ctrl-s opens the tools sub-menu; no session needed
+	if key == "ctrl-s" {
+		return &SessionSelection{Action: SessionActionTools}, nil
 	}
 
 	// Extract session name from selected line
@@ -198,6 +205,40 @@ func SelectSessionWithAction(sessions []*types.SessionStatus, showActiveOnly boo
 	}
 
 	return nil, fmt.Errorf("selected session not found")
+}
+
+// ToolAction represents an action in the tools sub-menu
+type ToolAction string
+
+const (
+	// ToolActionPrefillCache indicates the pre-fill mirror cache action
+	ToolActionPrefillCache ToolAction = "prefill_cache"
+	// ToolActionCancel indicates the user cancelled the tools menu
+	ToolActionCancel ToolAction = "cancel"
+)
+
+// SelectToolAction shows FZF menu for tool action selection.
+// Returns ToolActionCancel if the user exits FZF without selecting.
+func SelectToolAction() (ToolAction, error) {
+	const prefillLabel = "Pre-fill mirror cache"
+
+	selected, err := runFZF(
+		prefillLabel,
+		"--prompt=🔧 Select tool > ",
+		"--reverse",
+		"--border=rounded",
+		"--height=80%",
+		"--header=enter: select | ctrl-c: back",
+	)
+	if err != nil {
+		return ToolActionCancel, nil
+	}
+
+	if selected == prefillLabel {
+		return ToolActionPrefillCache, nil
+	}
+
+	return ToolActionCancel, nil
 }
 
 // repoTypeLabel returns the emoji+label string for a repository's source type.

@@ -31,22 +31,31 @@ func (m *Manager) Clone(url, path string) error {
 
 // CloneWithCache clones a repository using a local mirror cache for faster cloning
 func (m *Manager) CloneWithCache(url, path, cacheDir string) error {
+	if _, err := m.EnsureMirror(url, cacheDir); err != nil {
+		return err
+	}
+
+	mirrorPath := m.GetMirrorPath(url, cacheDir)
+	return m.cloneWithReference(url, path, mirrorPath)
+}
+
+// EnsureMirror creates a new mirror if one doesn't exist, or updates (fetch --prune)
+// an existing mirror. Returns created=true if a new mirror was created, created=false
+// if an existing mirror was updated.
+func (m *Manager) EnsureMirror(url, cacheDir string) (created bool, err error) {
 	mirrorPath := m.GetMirrorPath(url, cacheDir)
 
 	if !m.MirrorExists(mirrorPath) {
-		// Create new mirror
 		if err := m.createMirror(url, mirrorPath); err != nil {
-			return err
+			return false, err
 		}
-	} else {
-		// Update existing mirror with latest commits
-		if err := m.updateMirror(mirrorPath); err != nil {
-			return err
-		}
+		return true, nil
 	}
 
-	// Clone using the mirror as reference
-	return m.cloneWithReference(url, path, mirrorPath)
+	if err := m.updateMirror(mirrorPath); err != nil {
+		return false, err
+	}
+	return false, nil
 }
 
 // GetMirrorPath returns the path where the mirror cache should be stored
